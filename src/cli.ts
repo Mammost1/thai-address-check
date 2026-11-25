@@ -9,10 +9,11 @@
  */
 import { realpathSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { ColumnError } from './file/columns'
-import { checkFile, type FileSummary } from './file/run'
+import { checkFile, defaultOutputPath, type FileSummary } from './file/run'
 
 /** Where the command writes; replaced in tests. */
 export interface Io {
@@ -81,6 +82,28 @@ function number(name: string, text: string | undefined, min: number, max: number
   return n
 }
 
+const WRITE_REASON: Record<string, string> = {
+  ENOENT: 'the directory does not exist',
+  EACCES: 'permission denied',
+  EPERM: 'permission denied',
+  EISDIR: 'it is a directory',
+  ENOTDIR: 'a part of the path is not a directory',
+  EROFS: 'the file system is read-only',
+}
+
+/**
+ * The message for an error thrown while running: a bad argument as it is, and a file error
+ * attributed to the file that failed, so a missing output directory is not reported as a missing input.
+ */
+function fileErrorMessage(e: NodeJS.ErrnoException, input: string, out: string | undefined, report: string | undefined): string {
+  if (e instanceof ColumnError || e instanceof RangeError) return e.message
+  const same = (a: string | undefined, b: string | undefined): boolean => a !== undefined && b !== undefined && resolve(a) === resolve(b)
+  const reason = WRITE_REASON[e.code ?? ''] ?? e.message
+  if (same(e.path, report)) return `Cannot write report ${report}: ${reason}`
+  if (same(e.path, out ?? defaultOutputPath(input))) return `Cannot write output ${e.path}: ${reason}`
+  return e.code === 'ENOENT' ? `File not found: ${e.path ?? input}` : e.message
+}
+
 /**
  * Runs the command.
  *
@@ -145,8 +168,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
     return 0
   } catch (error) {
     const e = error as NodeJS.ErrnoException
-    const message = error instanceof ColumnError || error instanceof RangeError ? e.message : e.code === 'ENOENT' ? `File not found: ${e.path ?? positionals[0]}` : e.message
-    io.stderr(`thai-address-check: ${message}\n`)
+    io.stderr(`thai-address-check: ${fileErrorMessage(e, positionals[0], values.out, values.report)}\n`)
     return 2
   }
 }

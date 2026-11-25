@@ -128,6 +128,44 @@ describe('a run', () => {
   })
 })
 
+describe('file errors are attributed to the right file (tac-harden T6)', () => {
+  const GOOD = 'ตำบล,รหัสไปรษณีย์\nเกาะพะงัน,84280\n'
+
+  it('--out into a missing directory says the output cannot be written, not that a file is missing', async () => {
+    const input = join(dir, 'a.csv')
+    await writeFile(input, GOOD)
+    const r = await run([input, '--out', join(dir, 'no-such-dir', 'x.csv')])
+    expect(r.code).toBe(2)
+    expect(r.err).toContain('Cannot write output')
+    expect(r.err).toContain('the directory does not exist')
+    expect(r.err).not.toContain('File not found')
+  })
+
+  it('--report into a missing directory is reported as the report', async () => {
+    const input = join(dir, 'a.csv')
+    await writeFile(input, GOOD)
+    const r = await run([input, '--out', join(dir, 'o.csv'), '--report', join(dir, 'no-such-dir', 'r.json')])
+    expect(r.code).toBe(2)
+    expect(r.err).toContain('Cannot write report')
+    expect(r.err).toContain('the directory does not exist')
+  })
+
+  it('--out that is a directory says so', async () => {
+    const input = join(dir, 'a.csv')
+    await writeFile(input, GOOD)
+    const r = await run([input, '--out', dir])
+    expect(r.code).toBe(2)
+    expect(r.err).toContain('Cannot write output')
+    expect(r.err).toContain('it is a directory')
+  })
+
+  it('a missing INPUT is still "File not found"', async () => {
+    const r = await run([join(dir, 'nope.csv')])
+    expect(r.code).toBe(2)
+    expect(r.err).toMatch(/File not found: .*nope\.csv/)
+  })
+})
+
 describe('--delimiter (tac-harden T5)', () => {
   it('a wrong one exits 2 and names the likely one; "tab" and the real delimiter work', async () => {
     const comma = join(dir, 'comma.csv')
