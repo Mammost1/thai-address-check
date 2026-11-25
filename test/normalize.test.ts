@@ -65,13 +65,23 @@ describe('normalize', () => {
       ['subdistrict', 'แขวงพระบรมมหาราชวัง', 'พระบรมมหาราชวัง'],
       ['district', 'อ.เมืองสุราษฎร์ธานี', 'เมืองสุราษฎร์ธานี'],
       ['district', 'อำเภอ เมืองสุราษฎร์ธานี', 'เมืองสุราษฎร์ธานี'],
-      ['district', 'เขตพระนคร', 'พระนคร'],
+      ['district', 'เขต พระนคร', 'พระนคร'], // not the dataset's exact spelling, so the prefix goes
       ['province', 'จ.สุราษฎร์ธานี', 'สุราษฎร์ธานี'],
       ['province', 'จังหวัดสุราษฎร์ธานี', 'สุราษฎร์ธานี'],
     ] as const)('%s %s -> %s', (field, given, expected) => {
       const r = normalize({ [field]: given })
       expect(r[field]).toBe(expected)
       expect(r.applied[field]).toEqual(['strip-prefix'])
+    })
+
+    // tac-night A3 (ruling 8e5bf3f9): the dataset stores Bangkok districts WITH 'เขต'. That exact spelling
+    // used to be "cleaned" to 'พระนคร' with a FORMAT_NORMALIZED finding, so a row copied from the
+    // dataset (or from `thai-address-check export`) did not come back clean. Now it is kept as written.
+    it("keeps a value that is exactly the dataset's own name: 'เขตพระนคร' stays, no rule fires", () => {
+      const r = normalize({ district: 'เขตพระนคร' })
+      expect(r.district).toBe('เขตพระนคร')
+      expect(r.applied).toEqual({})
+      expect(normalize({ district: 'พระนคร' }).district).toBe('พระนคร')
     })
 
     it('strips "อ.เมือง" to "เมือง" and leaves the choice of district to validation', () => {

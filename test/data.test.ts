@@ -9,6 +9,7 @@ import {
   districtsByName,
   districtsOf,
   englishKey,
+  isDatasetName,
   isKnownName,
   isPostalCodeInUse,
   provinceByCode,
@@ -119,5 +120,20 @@ describe('abolished areas', () => {
     // Both abolished บางนา are แขวง (subdistricts), so the เขต-prefixed form matches nothing.
     expect(abolishedByName('เขตบางนา')).toEqual([])
     expect(abolishedByName('ไม่มีชื่อนี้')).toEqual([])
+  })
+})
+
+describe('isDatasetName (tac-night A3): the exact stored spelling, per level, no folding', () => {
+  it("'เขตพระนคร' is a district name; not a subdistrict or province name", () => {
+    expect(isDatasetName('district', 'เขตพระนคร')).toBe(true)
+    expect(isDatasetName('subdistrict', 'เขตพระนคร')).toBe(false)
+    expect(isDatasetName('province', 'เขตพระนคร')).toBe(false)
+  })
+
+  it('a folded or prefix-less variant is not the stored spelling', () => {
+    expect(isDatasetName('district', 'พระนคร')).toBe(false)
+    expect(isDatasetName('district', 'เขต พระนคร')).toBe(false)
+    expect(isDatasetName('district', 'Phra Nakhon')).toBe(true)
+    expect(isDatasetName('district', 'phra nakhon')).toBe(false)
   })
 })

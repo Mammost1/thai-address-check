@@ -2,7 +2,7 @@
  * Feature 4: formatting-only cleanup. Nothing here guesses what the caller meant; a value only
  * changes in ways that cannot change which area it names, and every rule that fired is recorded.
  */
-import { hasThai, isKnownName, type Level } from './data'
+import { hasThai, isDatasetName, isKnownName, type Level } from './data'
 import type { AddressInput, Field, NormalizedAddress } from './types'
 
 /** Names of the rules `normalize()` can record in `applied`. */
@@ -105,11 +105,14 @@ function withoutPrefix(level: Level, value: string): string | undefined {
 /**
  * Removes a level prefix only when that cannot change the name: the remainder is a known name
  * at this level, or the original is not. A real name that merely starts like a prefix
- * (for example the subdistrict 'จ.ป.ร.') is therefore kept as written.
+ * (for example the subdistrict 'จ.ป.ร.') is therefore kept as written, and so is a value that is
+ * exactly the dataset's own name at this level: Bangkok districts are stored as 'เขตพระนคร', so that
+ * spelling is not "cleaned" to 'พระนคร' (tac-night A3; both spellings are accepted, neither rewritten).
  */
 function stripPrefix(level: Level, s: Step): Step {
   const rest = withoutPrefix(level, s.value)
   if (rest === undefined || rest === '') return s
+  if (isDatasetName(level, s.value)) return s
   if (isKnownName(level, rest) || !isKnownName(level, s.value)) return step(s, 'strip-prefix', rest)
   return s
 }

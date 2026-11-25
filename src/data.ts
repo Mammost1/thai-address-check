@@ -216,6 +216,22 @@ export function isKnownName(level: Level, name: string): boolean {
   return byName(levelOf(level), name).length > 0
 }
 
+const exactNames = new Map<Level, Set<string>>()
+
+/**
+ * True when `name` is, character for character, the Thai or English name the dataset stores for some
+ * current area at `level` (so 'เขตพระนคร' is a district name, 'เขต พระนคร' and 'พระนคร' are not).
+ * No key folding: this answers "is this value already the dataset's own spelling".
+ */
+export function isDatasetName(level: Level, name: string): boolean {
+  let names = exactNames.get(level)
+  if (!names) {
+    names = new Set(levelOf(level).all.flatMap((a) => [a.name_th, a.name_en]))
+    exactNames.set(level, names)
+  }
+  return names.has(name)
+}
+
 /** Subdistricts that use this postal code, sorted by code. The code must be exactly 5 digits. */
 export function subdistrictsByPostalCode(postalCode: string): Subdistrict[] {
   const list = indexes().byPostalCode.get(postalCode)
