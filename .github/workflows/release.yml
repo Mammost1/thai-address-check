@@ -1,0 +1,32 @@
+name: Release to npm
+
+# Publishes to npm when a version tag (v1.2.3) is pushed.
+# Uses npm Trusted Publishing (OIDC): no npm token is stored anywhere.
+# One-time setup on npmjs.com: package Settings -> Trusted Publisher -> GitHub Actions,
+# repository = this repo, workflow filename = release.yml.
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+  id-token: write # required for npm Trusted Publishing and provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Check that the tag matches package.json
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then echo "tag v$TAG does not match package.json $PKG"; exit 1; fi
+      - run: npm ci
+      - run: npm run typecheck && npm test && npm run build
+      - run: npm publish --ignore-scripts
