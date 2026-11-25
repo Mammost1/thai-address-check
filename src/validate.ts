@@ -52,6 +52,11 @@ interface Resolved {
   subdistrict: { given: string; found: Subdistrict[] } | undefined
 }
 
+/** The text of a cell as it appears in a message: a long one (free text in the wrong column) is cut. */
+function shown(text: string): string {
+  return text.length <= 60 ? text : `${text.slice(0, 40)}… (${text.length} characters)`
+}
+
 function present(value: string | undefined): string | undefined {
   return value === undefined || value.trim() === '' ? undefined : value
 }
@@ -102,8 +107,8 @@ function resolveNames(ctx: CheckContext): { names: Resolved; findings: Finding[]
           'UNKNOWN_NAME',
           'error',
           [level],
-          `ไม่พบ${LABEL_TH[level]}ชื่อ "${given}" ในข้อมูลปัจจุบัน`,
-          `No current ${LABEL_EN[level]} is named "${given}".`,
+          `ไม่พบ${LABEL_TH[level]}ชื่อ "${shown(given)}" ในข้อมูลปัจจุบัน`,
+          `No current ${LABEL_EN[level]} is named "${shown(given)}".`,
           { given, level },
         ),
       )

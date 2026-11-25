@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { check, DEFAULT_OPTIONS } from '../src/check'
 import { normalize } from '../src/normalize'
-import { allSubdistricts, districtByCode, provinceByCode } from '../src/data'
-import { AUTOCORRECT_MARGIN, POSTAL_CONFIDENCE, suggest } from '../src/suggest'
+import { allDistricts, allProvinces, allSubdistricts, districtByCode, provinceByCode } from '../src/data'
+import { AUTOCORRECT_MARGIN, MAX_FUZZY_CHARS, POSTAL_CONFIDENCE, suggest } from '../src/suggest'
 import type { AddressInput, CheckContext, CheckOptions, Finding } from '../src/types'
 
 // suggest() is driven directly with a context built the way check() builds it, so these tests do
@@ -292,4 +292,50 @@ describe('a close runner-up blocks auto-correction (tac-harden T1)', () => {
     expect(corrected).toBeGreaterThan(5000) // the invariant is not vacuous
     expect(crowded).toBe(0)
   }, 60_000)
+})
+
+describe('a long text cell is answered at once (tac-harden T10: it used to cost ~0.27 ms per character)', () => {
+  it('the cap is at least twice the longest real name, so no misspelling of a real name is skipped', () => {
+    const longest = Math.max(...[...allProvinces(), ...allDistricts(), ...allSubdistricts()].flatMap((a) => [[...a.name_th].length, a.name_en.length]))
+    expect(longest).toBe(31) // data 2026.10.23: the English names are the longest
+    expect(MAX_FUZZY_CHARS).toBeGreaterThanOrEqual(2 * longest)
+  })
+
+  it.each(['province', 'district', 'subdistrict'] as const)('a 100,000-character %s is UNKNOWN_NAME in well under a second, with a short message', (field) => {
+    const started = Date.now()
+    const r = check({ [field]: 'ก'.repeat(100_000) })
+    expect(Date.now() - started).toBeLessThan(1000) // 28 s before the fix
+    expect(r.status).toBe('invalid')
+    const unknown = r.findings.find((f) => f.code === 'UNKNOWN_NAME')
+    expect(unknown?.fields).toEqual([field])
+    expect(unknown?.message.th.length).toBeLessThan(200)
+    expect(unknown?.message.en.length).toBeLessThan(200)
+    expect(unknown?.message.th).toContain('100000 characters')
+    expect(r.suggestions).toEqual([])
+    expect(r.findings.some((f) => f.code === 'MISSPELLED_NAME')).toBe(false)
+  })
+
+  it('a thousand rows of free text in the subdistrict column take no time (a 300-character cell cost ~80 ms)', () => {
+    const text = 'บ้านเลขที่ 123/45 หมู่ที่ 6 ซอยสุขุมวิท 71 ถนนสุขุมวิท แขวงพระโขนงเหนือ เขตวัฒนา กรุงเทพมหานคร ใกล้ตลาดนัดจตุจักร '.repeat(3)
+    expect(text.length).toBeGreaterThan(300)
+    const started = Date.now()
+    for (let i = 0; i < 1000; i++) check({ subdistrict: text, postalCode: '10110' })
+    expect(Date.now() - started).toBeLessThan(3000) // about 80 s before the fix
+  })
+
+  it('a long cell is cut in the message but kept whole in the detail', () => {
+    const given = 'ก'.repeat(500)
+    const f = check({ subdistrict: given }).findings.find((x) => x.code === 'UNKNOWN_NAME')
+    expect(f?.message.en).toContain('… (500 characters)')
+    expect(f?.detail.given).toBe(given)
+    // A short unknown name is quoted in full.
+    expect(check({ subdistrict: 'Qzxwvkj' }).findings.find((x) => x.code === 'UNKNOWN_NAME')?.message.en).toContain('"Qzxwvkj"')
+  })
+
+  it('at the cap a name is still fuzzy-matched; just over it is not', () => {
+    const near = 'เกาะพะงนั' // a real misspelling, far below the cap
+    expect(check({ province: 'สุราษฎร์ธานี', district: 'เกาะพะงัน', subdistrict: near }).status).toBe('corrected')
+    const r = check({ subdistrict: 'ก'.repeat(MAX_FUZZY_CHARS + 1) })
+    expect(r.findings.some((f) => f.code === 'MISSPELLED_NAME')).toBe(false)
+  })
 })

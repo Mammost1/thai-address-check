@@ -50,6 +50,13 @@ export const NO_CONTEXT_FIT = 0.9
 /** Weight of a candidate that any settled field (parent, child or postal code) contradicts. */
 export const CONTRADICTS_FIT = 0.5
 /**
+ * Text longer than this is never fuzzy-matched. The longest real name is 31 characters (English) and 23
+ * (Thai), so a longer cell (a free-text address mapped to the wrong column) is not a misspelled name, and
+ * comparing it with every name costs about 0.27 ms per character (100,000 characters took 28 s); it stays
+ * the UNKNOWN_NAME that validate already reported (tac-harden T10). 64 is twice the longest name.
+ */
+export const MAX_FUZZY_CHARS = 64
+/**
  * A correction is applied only when the best candidate is at least this far ahead of the runner-up.
  * Without it, a name one character from two real names is "corrected" to whichever scores 0.9 while
  * the other scores 0.83 (ท่าวัก -> ท่าซัก, though ท่าวัง is as close): both are plausible, so the caller
@@ -310,6 +317,7 @@ function fitsOutput(output: CheckContext['output']): ResolvedAddress[] {
 function handleName(ctx: CheckContext, level: Level): boolean {
   const given = ctx.output[level]
   if (!given || isKnownName(level, given)) return false
+  if (given.length > MAX_FUZZY_CHARS) return false
   // An exact abolished name is explained by abolished.ts, which knows its official successors;
   // fuzzy matching must not pre-empt it (review ruling ).
   if (isAbolishedName(level, given)) return false
