@@ -268,10 +268,19 @@ describe('formatSummary', () => {
     expect(text).toContain('1,000 rows')
     expect(text).toContain('valid 900 (90.0%)')
     expect(text).toContain('invalid 40 (4.0%)')
-    expect(text).toContain('POSTAL_CODE_MISMATCH 30 · AMBIGUOUS 10 · FORMAT_NORMALIZED 120')
+    expect(text).toContain('findings: POSTAL_CODE_MISMATCH 30 · AMBIGUOUS 10\n') // FORMAT_NORMALIZED is not a "finding" line
+    expect(text).toContain('formatting cleaned in 120 rows (meaning unchanged, not a problem)')
     expect(text).not.toContain('UNKNOWN_NAME')
     expect(text).toContain('subdistrict="ตำบล"')
     expect(text).toContain('a.checked.csv')
+  })
+
+  it('a fully valid file whose formatting was cleaned shows no "findings:" line (tac-harden T8)', () => {
+    const text = formatSummary({ input: 'a', output: 'b', rows: 200, blankRowsSkipped: 0, statuses: { valid: 200, corrected: 0, ambiguous: 0, invalid: 0 }, invalidPercent: 0, findings: { FORMAT_NORMALIZED: 6 }, columns: {}, encoding: 'utf-8', delimiter: ',', autoCorrect: true, dataVersion: 'x', elapsedMs: 0 })
+    expect(text).not.toContain('findings:')
+    expect(text).toContain('formatting cleaned in 6 rows')
+    expect(text).toContain('valid 200 (100.0%)')
+    expect(formatSummary({ input: 'a', output: 'b', rows: 1, blankRowsSkipped: 0, statuses: { valid: 1, corrected: 0, ambiguous: 0, invalid: 0 }, invalidPercent: 0, findings: { FORMAT_NORMALIZED: 1 }, columns: {}, encoding: 'utf-8', delimiter: ',', autoCorrect: true, dataVersion: 'x', elapsedMs: 0 })).toContain('formatting cleaned in 1 row ')
   })
 
   it('says how many blank rows were skipped, only when there were some', () => {
