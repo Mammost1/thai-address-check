@@ -24,8 +24,13 @@
  * 28); the widest scan is the subdistricts of one district.
  */
 import {
+  allMueangDistricts,
+  districtByCode,
   districtsByName,
   districtsOf,
+  hasThai,
+  isBareMueang,
+  mueangDistrictOf,
   isPostalCodeInUse,
   provinceByCode,
   provincesByName,
@@ -38,7 +43,7 @@ import {
   type Province,
   type Subdistrict,
 } from './data'
-import { LABEL_EN, LABEL_TH } from './labels'
+import { formatFinding, LABEL_EN, LABEL_TH } from './labels'
 import type { CheckContext, Field, Finding, ResolvedAddress, Severity, Suggestion } from './types'
 
 /** How many options a finding lists before it only reports the total. */
@@ -89,12 +94,42 @@ function subdistrictsOfDistricts(districts: readonly District[]): Subdistrict[] 
   return districts.flatMap((d) => subdistrictsOf(d.code))
 }
 
+function mueangCandidates(provinces: readonly Province[] | undefined): District[] {
+  if (provinces === undefined) return allMueangDistricts()
+  return provinces.flatMap((p) => {
+    const d = mueangDistrictOf(p.code)
+    return d ? [d] : []
+  })
+}
+
+/**
+ * Writes a bare 'เมือง' / 'Mueang' district as the full name of the district it was resolved to, in
+ * the language it was written in, as a formatting change: the meaning is the same, so the result
+ * stays 'valid' and carries FORMAT_NORMALIZED with the rule 'mueang-province'.
+ */
+function expandMueang(ctx: CheckContext, d: District): void {
+  const given = ctx.output.district
+  if (given === undefined || !isBareMueang(given)) return
+  const full = hasThai(given) ? d.name_th : d.name_en
+  const applied = ctx.normalized.applied
+  const rules = [...(applied.district ?? []), 'mueang-province']
+  applied.district = rules
+  ;(ctx.normalized as { district?: string }).district = full
+  ctx.output = { ...ctx.output, district: full }
+  const old = ctx.findings.findIndex((f) => f.code === 'FORMAT_NORMALIZED' && f.fields.length === 1 && f.fields[0] === 'district')
+  const updated = formatFinding('district', ctx.input.district, full, rules)
+  if (old >= 0) ctx.findings[old] = updated
+  else ctx.findings.push(updated)
+}
+
 function resolveNames(ctx: CheckContext): { names: Resolved; findings: Finding[] } {
   const names: Resolved = { province: undefined, district: undefined, subdistrict: undefined }
   const findings: Finding[] = []
   const lookup: Record<Level, (name: string) => (Province | District | Subdistrict)[]> = {
     province: (n) => provincesByName(n),
-    district: (n) => districtsByName(n),
+    // A bare 'เมือง' / 'Mueang' is the capital district of the given province; with no province (or one
+    // not found) it is any capital district, and the other fields choose (tac-night F12, ruling eb27cfaa).
+    district: (n) => (isBareMueang(n) ? mueangCandidates(names.province?.found) : districtsByName(n)),
     subdistrict: (n) => subdistrictsByName(n),
   }
   for (const level of ['province', 'district', 'subdistrict'] as const) {
@@ -405,6 +440,11 @@ function fillMissing(ctx: CheckContext, c: ResolvedAddress): void {
  */
 export function validate(ctx: CheckContext): void {
   const { names, findings } = resolveNames(ctx)
+  const oneDistrict = names.district?.found.length === 1 ? names.district.found[0] : undefined
+  if (oneDistrict && names.district) {
+    expandMueang(ctx, oneDistrict)
+    names.district = { ...names.district, given: ctx.output.district ?? names.district.given }
+  }
   const postal = present(ctx.output.postalCode)
 
   // Names must agree with each other.
@@ -449,7 +489,11 @@ export function validate(ctx: CheckContext): void {
   }
   const candidates = fit.map(resolvedOf)
   const only = candidates.length === 1 ? candidates[0] : undefined
-  if (only) fillMissing(ctx, only)
+  if (only) {
+    const d = districtByCode(only.districtCode)
+    if (d) expandMueang(ctx, d)
+    fillMissing(ctx, only)
+  }
   else if (candidates.length > 1) {
     ctx.candidates = candidates
     ctx.findings.push(ambiguous(candidates))

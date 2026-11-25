@@ -29,6 +29,7 @@ import {
   districtsOf,
   englishKey,
   hasThai,
+  isBareMueang,
   isKnownName,
   isPostalCodeInUse,
   provincesByName,
@@ -318,6 +319,9 @@ function handleName(ctx: CheckContext, level: Level): boolean {
   const given = ctx.output[level]
   if (!given || isKnownName(level, given)) return false
   if (given.length > MAX_FUZZY_CHARS) return false
+  // A bare 'เมือง' is an abbreviation, not a misspelling: validate resolves it from the province, and
+  // when it cannot, a fuzzy 'คูเมือง' would only mislead (tac-night F12).
+  if (level === 'district' && isBareMueang(given)) return false
   // An exact abolished name is explained by abolished.ts, which knows its official successors;
   // fuzzy matching must not pre-empt it (review ruling ).
   if (isAbolishedName(level, given)) return false

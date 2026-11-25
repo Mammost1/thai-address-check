@@ -5,7 +5,7 @@
  */
 import { checkAbolished } from './abolished'
 import { dataVersion } from './data'
-import { LABEL_EN, LABEL_TH } from './labels'
+import { formatFinding } from './labels'
 import { normalize } from './normalize'
 import { suggest } from './suggest'
 import type {
@@ -52,17 +52,7 @@ function formatFindings(input: AddressInput, normalized: NormalizedAddress): Fin
   const found: Finding[] = []
   for (const field of FIELDS) {
     const rules = normalized.applied[field]
-    if (!rules || rules.length === 0) continue
-    found.push({
-      code: 'FORMAT_NORMALIZED',
-      severity: 'info',
-      fields: [field],
-      message: {
-        th: `ปรับรูปแบบการเขียนของช่อง${LABEL_TH[field]} (${rules.join(', ')}) ความหมายไม่เปลี่ยน`,
-        en: `Cleaned the formatting of the ${LABEL_EN[field]} (${rules.join(', ')}); the meaning is unchanged.`,
-      },
-      detail: { given: input[field], normalized: normalized[field], rules: [...rules] },
-    })
+    if (rules && rules.length > 0) found.push(formatFinding(field, input[field], normalized[field], rules))
   }
   return found
 }

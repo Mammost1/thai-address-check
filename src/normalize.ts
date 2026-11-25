@@ -16,6 +16,7 @@ export type NormalizeRule =
   | 'bangkok-alias'
   | 'postal-decimal-zero'
   | 'postal-digits-only'
+  | 'mueang-province' // applied by validate: bare 'เมือง' written as the full capital-district name
 
 const FIELDS: readonly Field[] = ['province', 'district', 'subdistrict', 'postalCode']
 

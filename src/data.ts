@@ -216,6 +216,43 @@ export function isKnownName(level: Level, name: string): boolean {
   return byName(levelOf(level), name).length > 0
 }
 
+/**
+ * True for a district written as the bare word for a province's capital district: 'เมือง' (after
+ * 'อ.' / 'อำเภอ' are stripped) or 'Mueang' / 'Muang' in any case or spacing. It names no district by
+ * itself; with the province it means เมือง<province> (tac-night F12).
+ */
+export function isBareMueang(name: string): boolean {
+  const n = name.trim()
+  return n === 'เมือง' || (!hasThai(n) && ['mueang', 'muang'].includes(englishKey(n)))
+}
+
+let mueangCache: Map<string, District> | undefined
+
+/**
+ * The capital district of a province, named 'เมือง' + the province's Thai name ('เมืองเชียงใหม่'), or
+ * undefined when the province has none (Bangkok, and Phra Nakhon Si Ayutthaya whose capital district is
+ * named 'พระนครศรีอยุธยา').
+ */
+export function mueangDistrictOf(provinceCode: string): District | undefined {
+  return mueangDistricts().get(provinceCode)
+}
+
+function mueangDistricts(): Map<string, District> {
+  if (!mueangCache) {
+    mueangCache = new Map()
+    for (const p of allProvinces()) {
+      const d = districtsOf(p.code).find((x) => x.name_th === `เมือง${p.name_th}`)
+      if (d) mueangCache.set(p.code, d)
+    }
+  }
+  return mueangCache
+}
+
+/** Every capital district named 'เมือง' + its province (75 in data 2026.10.23), sorted by code. */
+export function allMueangDistricts(): District[] {
+  return [...mueangDistricts().values()]
+}
+
 const exactNames = new Map<Level, Set<string>>()
 
 /**
