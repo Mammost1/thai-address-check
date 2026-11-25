@@ -236,7 +236,7 @@ and why**, suggest the fix, and **correct automatically only when the evidence i
 library, as a command for CSV/Excel files, or as a web page that runs entirely in the browser. No AI, no server calls;
 everything runs on your machine.
 
-> **Status:** not yet published on npm. Publishing is the project owner's decision. Install from source (below).
+> **Install:** `npm install thai-address-check` (published on npm).
 
 ### Example 1: check one address
 
