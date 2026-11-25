@@ -138,6 +138,7 @@ function normalizeField(field: Field, raw: string): Step {
  * non-digits in the postal code. Fields that are absent stay absent; a blank field becomes ''.
  *
  * @param input - The address as the caller has it.
+ * @throws TypeError when `input` is not an object (undefined, null, a string, a number, an array).
  * @returns The cleaned fields plus, per field, the rules that changed it (in order).
  * @example
  * normalize({ subdistrict: 'ต. ตลาด', province: 'จ.สุราษฎร์ธานี', postalCode: '๘๔๐๐๐' })
@@ -145,6 +146,11 @@ function normalizeField(field: Field, raw: string): Step {
  * //   applied: { subdistrict: ['strip-prefix'], province: ['strip-prefix'], postalCode: ['thai-digits'] } }
  */
 export function normalize(input: AddressInput): NormalizedAddress {
+  // The types forbid these, but plain JavaScript (and a spreadsheet row that is missing) can pass them.
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    const got = input === null ? 'null' : Array.isArray(input) ? 'an array' : typeof input
+    throw new TypeError(`expected an address object such as { province, district, subdistrict, postalCode }, got ${got}`)
+  }
   const out: NormalizedAddress = { applied: {} }
   for (const field of FIELDS) {
     const raw: unknown = input[field]

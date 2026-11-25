@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { check } from '../src/check'
+import { check, checkMany } from '../src/check'
 import { subdistrictsByName } from '../src/data'
 import { normalize } from '../src/normalize'
 import type { AddressInput, CheckContext, CheckOptions, Finding } from '../src/types'
@@ -466,5 +466,32 @@ describe('Thai messages use Thai field labels', () => {
     expect(one(ctx, 'POSTAL_CODE_MISMATCH').message.th).toContain('ตำบล/แขวง')
     expect(one(ctx, 'POSTAL_CODE_MISMATCH').message.en).toContain('subdistrict')
     expect(one(run({ subdistrict: 'หนองบัว' }), 'AMBIGUOUS').message.th).toContain('จังหวัด')
+  })
+})
+
+describe('input that is not an address object (tac-harden T11)', () => {
+  const BAD: [string, unknown, string][] = [
+    ['undefined', undefined, 'undefined'],
+    ['null', null, 'null'],
+    ['a string', 'เกาะพะงัน', 'string'],
+    ['a number', 84280, 'number'],
+    ['an array', [], 'an array'],
+  ]
+
+  it.each(BAD)('check(%s) throws a TypeError that says what was expected', (_name, value, got) => {
+    expect(() => check(value as never)).toThrow(TypeError)
+    expect(() => check(value as never)).toThrow(`expected an address object such as { province, district, subdistrict, postalCode }, got ${got}`)
+  })
+
+  it('normalize() says the same, and checkMany() throws when it reaches the bad item', () => {
+    expect(() => normalize(undefined as never)).toThrow(/expected an address object/)
+    const results = checkMany([{ subdistrict: 'เกาะพะงัน', postalCode: '84280' }, undefined as never])
+    expect(results.next().value?.status).toBe('corrected') // the good item is still checked first
+    expect(() => results.next()).toThrow(/expected an address object/)
+  })
+
+  it('real objects are untouched: an empty object, extra keys and a numeric postal code still work', () => {
+    expect(check({}).status).toBe('invalid')
+    expect(check({ subdistrict: 'เกาะพะงัน', postalCode: 84280 as never, note: 'x' } as never).status).toBe('corrected')
   })
 })
