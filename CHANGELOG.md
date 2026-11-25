@@ -29,6 +29,9 @@ The benchmark (`npm run bench`, seed 20261125) gives the same counts and digest 
 the fix changes no benchmark class.
 ตัวเลข benchmark เท่าเดิมทุกคลาส (digest เดิม)
 
+- The same change removes a false province-level mismatch for an abolished district named with its
+  old province, for example `หนองเข็ง` / `บึงกาฬ` / `หนองคาย` / `38000`.
+
 ## 0.1.0 — 2026-11-25
 
 Initial public release / ปล่อยรุ่นแรก
