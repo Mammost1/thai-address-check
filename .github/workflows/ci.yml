@@ -37,6 +37,11 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Library smoke test (require() and import() of the built package)
+        # require() of the ES module build works on Node >= 22.12; this keeps it working (tac-harden T2).
+        run: |
+          node -e "const m=require('thai-address-check');if(m.check({subdistrict:'เกาะพะงัน',postalCode:'84280'}).status!=='corrected')process.exit(3)"
+          node --input-type=module -e "const m=await import('thai-address-check');if(typeof m.check!=='function')process.exit(3)"
       - name: Benchmark smoke (small sample; proves the harness still runs)
         # Full numbers come from `npm run bench`; this only checks that the build can be benchmarked.
         run: BENCH_N=20 BENCH_CLEAN=100 node bench/run.mjs
