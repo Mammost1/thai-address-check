@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { formatSummary, main } from '../src/cli'
 import { readCsvFile, readText, tempDir } from './file/fixtures'
@@ -125,6 +126,22 @@ describe('a run', () => {
     await writeFile(input, 'จังหวัด,อำเภอ,ตำบล\nสุราษฎร์ธานี,เกาะพะงัน,เกาะพะงนั\n')
     expect((await run([input, '--out', join(dir, 'o1.csv')])).err).toContain('corrected 1')
     expect((await run([input, '--threshold', '1', '--out', join(dir, 'o2.csv')])).err).toContain('corrected 0')
+  })
+})
+
+describe('--version (tac-harden T7)', () => {
+  it('prints the package version alone on stdout and exits 0', async () => {
+    const { version } = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8')) as { version: string }
+    const r = await run(['--version'])
+    expect(r.code).toBe(0)
+    expect(r.out).toBe(`${version}\n`)
+    expect(r.err).toBe('')
+    expect(version).toMatch(/^\d+\.\d+\.\d+$/)
+  })
+
+  it('works without a file, and is listed in --help', async () => {
+    expect((await run(['--version'])).code).toBe(0)
+    expect((await run(['--help'])).out).toContain('--version')
   })
 })
 

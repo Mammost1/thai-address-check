@@ -7,7 +7,7 @@
  *
  * Exit code: 0 done, 1 the invalid share is over --fail-over, 2 bad arguments or a file problem.
  */
-import { realpathSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -37,6 +37,7 @@ Options:
   --no-header          the file has no header row (use --map with numbers)
   --no-bom             do not start the output with a UTF-8 byte-order mark
   --quiet              no summary on screen
+  --version            print the version
   -h, --help           this text
 
 Exit code: 0 done; 1 invalid share over --fail-over; 2 bad arguments or file problem.
@@ -80,6 +81,16 @@ function number(name: string, text: string | undefined, min: number, max: number
     throw new RangeError(`${name} must be a number from ${min} to ${max}, got "${text}"`)
   }
   return n
+}
+
+/** The version in package.json (next to `dist/` in the published package, next to `src/` in the repo). */
+function packageVersion(): string {
+  try {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version?: unknown }
+    return typeof pkg.version === 'string' ? pkg.version : 'unknown'
+  } catch {
+    return 'unknown'
+  }
 }
 
 const WRITE_REASON: Record<string, string> = {
@@ -130,6 +141,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
         'no-bom': { type: 'boolean' },
         quiet: { type: 'boolean' },
         help: { type: 'boolean', short: 'h' },
+        version: { type: 'boolean' },
       },
     })
   } catch (error) {
@@ -139,6 +151,10 @@ export async function main(argv: string[], io: Io): Promise<number> {
   const { values, positionals } = parsed
   if (values.help) {
     io.stdout(USAGE)
+    return 0
+  }
+  if (values.version) {
+    io.stdout(`${packageVersion()}\n`)
     return 0
   }
   if (positionals.length !== 1 || positionals[0] === undefined) {
