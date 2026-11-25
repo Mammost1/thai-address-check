@@ -83,3 +83,19 @@ describe('bare เมือง without a province (tac-night F12)', () => {
     expect(r.suggestions.filter((s) => s.field === 'district')).toEqual([])
   })
 })
+
+// tac-night-2 item 2: the expanded district follows the language the DISTRICT was written in, not the
+// province's ('Mueang' under a Thai province gives the English name; 'เมือง' under an English one, Thai).
+describe('language of the expanded district (tac-night-2)', () => {
+  it.each([
+    [{ province: 'สมุทรปราการ', district: 'Mueang', subdistrict: 'ปากน้ำ', postalCode: '10270' }, 'Mueang Samut Prakan'],
+    [{ province: 'Samut Prakan', district: 'เมือง', subdistrict: 'Pak Nam', postalCode: '10270' }, 'เมืองสมุทรปราการ'],
+    [{ province: 'Samut Prakan', district: 'Muang', subdistrict: 'Pak Nam', postalCode: '10270' }, 'Mueang Samut Prakan'],
+    [{ province: 'สมุทรปราการ', district: 'อ.เมือง', subdistrict: 'ปากน้ำ', postalCode: '10270' }, 'เมืองสมุทรปราการ'],
+  ])('%j -> district %j, valid', (input, district) => {
+    const r = check(input)
+    expect(r.status).toBe('valid')
+    expect(r.output.district).toBe(district)
+    expect(r.output.province).toBe(input.province)
+  })
+})
