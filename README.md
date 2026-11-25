@@ -86,13 +86,20 @@ node dist/cli.js customers.csv         # ลองใช้คำสั่ง
 ใช้ในโค้ดได้ทั้ง `import { check } from 'thai-address-check'` และ `require('thai-address-check')` (`require()` โหลดโมดูล ES ตรง ๆ
 ซึ่ง Node 22.12 ขึ้นไปทำได้ ทดสอบแล้วบน Node 24 และ CI มีขั้นตอนตรวจทั้งสองแบบบน Node 22.12 และ 22.x)
 
-หน้าเว็บ (ลากไฟล์หรือวางที่อยู่แล้วเห็นผล ทุกอย่างประมวลผลในเบราว์เซอร์):
+หน้าเว็บ (วางที่อยู่ หรือลากไฟล์ **CSV** แล้วเห็นผล ทุกอย่างประมวลผลในเบราว์เซอร์):
 
 ```bash
 npm --prefix web ci
 npm --prefix web run dev               # เปิดทดลอง
 npm --prefix web run build             # ได้ web/dist/ (หน้าเว็บที่บล็อกการเชื่อมต่อออกนอกเครื่องด้วย CSP)
+npm --prefix web test                  # ชุดทดสอบของหน้าเว็บ
 ```
+
+ข้อจำกัดของหน้าเว็บ: รับเฉพาะไฟล์ **CSV** (ไม่รับ `.xlsx`) และไฟล์ที่ดาวน์โหลดมี **คอลัมน์ผลลัพธ์คนละชุดกับคำสั่ง terminal**
+คือเพิ่ม `check_status`, `check_findings`, `checked_province`, `checked_district`, `checked_subdistrict`, `checked_postal_code`,
+`check_suggestions` และ **ไม่แก้เซลล์เดิม** (ค่าที่แก้แล้วอยู่ในคอลัมน์ `checked_*`) ส่วนคำสั่ง terminal เพิ่ม `tac_*` และเขียนค่าที่แก้ลงในเซลล์เดิม
+ชุดทดสอบของหน้าเว็บจำลองเบราว์เซอร์ด้วย jsdom (กรอกที่อยู่เดียว, อัปโหลด CSV แบบ UTF-8 / คั่นด้วย `;` หรือแท็บ / TIS-620, ตรวจ, ดาวน์โหลด,
+ไฟล์ที่มีแถวชื่อเรื่อง, ไฟล์ว่าง, 3,000 แถว) และไม่ใช่การทดสอบในเบราว์เซอร์จริงทุกยี่ห้อ
 
 ## รหัสผลตรวจ (finding code)
 
@@ -103,7 +110,7 @@ npm --prefix web run build             # ได้ web/dist/ (หน้าเว
 |---|---|
 | `MISSING_FIELD` | ขาดช่องที่ต้องใช้ตัดสิน (ถ้ามีที่อยู่เดียวที่เข้ากัน จะเติมให้) |
 | `UNKNOWN_NAME` | ไม่มีพื้นที่ปัจจุบันชื่อนี้ในระดับนี้ |
-| `MISSPELLED_NAME` | ใกล้กับชื่อที่ถูกต้องเพียงชื่อเดียว (สะกดผิด) |
+| `MISSPELLED_NAME` | ใกล้กับชื่อที่ถูกต้องชื่อเดียวอย่างชัดเจน (สะกดผิด) ถ้ามีอีกชื่อใกล้พอกัน (ห่างไม่ถึง 0.15) จะเสนอทั้งสองและไม่แก้เอง |
 | `PARENT_MISMATCH` | พื้นที่มีอยู่ แต่ไม่อยู่ใต้พื้นที่แม่ที่ระบุ |
 | `POSTAL_CODE_MISMATCH` | รหัสไปรษณีย์ไม่ตรงกับตำบลที่ระบุ (บอกรหัสที่ถูก) |
 | `POSTAL_CODE_INVALID` | ไม่ครบ 5 หลัก หรือไม่มีที่ไหนใช้ |
@@ -134,9 +141,10 @@ npm --prefix web run build             # ได้ web/dist/ (หน้าเว
 |---|---|---|
 | แม่แดด / แม่ริม / เชียงใหม่ / 58130 | `invalid` + `PARENT_MISMATCH` (ตำบลนี้อยู่ใต้อำเภอกัลยาณิวัฒนา) ไม่แก้เป็นตำบลอื่น | sdk: เปลี่ยนเป็น "แม่แรม" และทิ้งรหัส 58130 |
 | เกาะพะงัน / สุราษฎร์ธานี / 84360 | `invalid` + `POSTAL_CODE_MISMATCH` บอกรหัสที่ถูก `84280` | sdk: เขียนทับเป็น 84280 โดยไม่แจ้ง |
-| บางนา / เขตบางนา / กรุงเทพ | `ambiguous` + `ABOLISHED_AREA` เสนอ บางนาเหนือ และ บางนาใต้ ความมั่นใจ 0.5 ไม่แก้เอง | sdk: เลือก "แขวงบางนาใต้" โดยไม่บอกว่าชื่อเดิมถูกยุบ |
+| บางนา / เขตบางนา / กรุงเทพ | `ambiguous` + `ABOLISHED_AREA` เสนอ บางนาเหนือ และ บางนาใต้ ความมั่นใจ 0.5 ไม่แก้เอง | sdk: ตอบ `ambiguous` พร้อมตัวเลือก (`bestMatch` คือ "แขวงบางนาใต้") แต่ไม่บอกว่าชื่อ "บางนา" ถูกยุบ |
 
-คอลัมน์ขวามาจากบันทึกของ recon ไม่ได้รันซ้ำเมื่อเขียน README และเวอร์ชันของแพ็กเกจเหล่านั้นอาจเปลี่ยนไปแล้ว
+คอลัมน์ขวารันซ้ำเมื่อ 2026-11-25 กับ `thai-address-universal` 2.2.1 และ `thai-address-sdk` 0.1.3 แถวที่ 1 และ 2 ตรงตามที่เขียนทุกประการ
+เวอร์ชันที่ใหม่กว่าอาจให้ผลต่างออกไป
 
 ## ความแม่นยำและความเร็ว
 
@@ -292,8 +300,13 @@ node dist/cli.js customers.csv
 Install: `npm install thai-address-check`, or run `npx thai-address-check <file>`. In code, both
 `import { check } from 'thai-address-check'` and `require('thai-address-check')` work (`require()` loads the ES module directly, which Node 22.12
 and newer can do; tested on Node 24, and CI has a step that checks both forms on Node 22.12 and 22.x).
-Web page: `npm --prefix web ci`, then `npm --prefix web run dev` (try it) or `npm --prefix web run build`
+Web page: `npm --prefix web ci`, then `npm --prefix web run dev` (try it), `npm --prefix web test` or `npm --prefix web run build`
 (`web/dist/`, with a Content-Security-Policy that blocks any connection leaving the browser).
+Limits of the web page: it reads **CSV only** (not `.xlsx`), and the file it downloads has **different output columns from the command**:
+it adds `check_status`, `check_findings`, `checked_province`, `checked_district`, `checked_subdistrict`, `checked_postal_code`,
+`check_suggestions` and **leaves the original cells untouched** (corrected values are in the `checked_*` columns); the command adds `tac_*`
+and writes corrections into the original cells. The page's tests simulate a browser with jsdom (one address; CSV upload as UTF-8, `;`- or
+tab-separated, TIS-620; check; download; a file with a title row; an empty file; 3,000 rows) and are not a test in every real browser.
 
 ### Finding codes
 
@@ -301,7 +314,8 @@ Every finding has a machine-readable code, the fields involved, a Thai and an En
 (`detail`). See the Thai table above for the meaning of each code: `MISSING_FIELD`, `UNKNOWN_NAME`, `MISSPELLED_NAME`,
 `PARENT_MISMATCH`, `POSTAL_CODE_MISMATCH`, `POSTAL_CODE_INVALID`, `ABOLISHED_AREA`, `AMBIGUOUS`, `FORMAT_NORMALIZED`.
 Overall `status`: `valid`, `corrected`, `ambiguous`, `invalid`. **Auto-correct rule:** apply a fix only when confidence is at
-least the threshold (default 0.9) **and** exactly one candidate qualifies; otherwise report a suggestion or `ambiguous`.
+least the threshold (default 0.9), exactly one candidate qualifies **and** no other candidate is within 0.15 of it; otherwise
+report a suggestion or `ambiguous`.
 
 ### How it differs from similar packages
 
@@ -313,8 +327,10 @@ error, has English-only messages, no codes, no suggestions, no "กรุงเ�
 What we add: every error with a machine-readable code, **no automatic fix when unsure**, abolished areas, whole files.
 On the same three inputs (run `check()` from `dist/index.js`): แม่แดด / แม่ริม gives `PARENT_MISMATCH` and no rewrite;
 เกาะพะงัน + 84360 gives `POSTAL_CODE_MISMATCH` with the right code `84280`; บางนา / เขตบางนา / กรุงเทพ gives `ambiguous` +
-`ABOLISHED_AREA` with two suggestions at confidence 0.5, none applied. The competitor behaviour is taken from the recon
-record and was not re-run when this README was written; those packages may have changed since.
+`ABOLISHED_AREA` with two suggestions at confidence 0.5, none applied. For comparison, `thai-address-sdk` 0.1.3 answers
+`ambiguous` with alternatives (its `bestMatch` is "แขวงบางนาใต้") but does not say that "บางนา" is an abolished name. The competitor
+column was re-run on 2026-11-25 with `thai-address-universal` 2.2.1 and `thai-address-sdk` 0.1.3 (rows 1 and 2 exactly as written);
+newer versions may behave differently.
 
 ### Accuracy and speed
 
