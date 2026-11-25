@@ -181,8 +181,9 @@ export async function checkFile(options: CheckFileOptions): Promise<FileSummary>
     header = first.value
     if (!looksLikeHeader(header) && entries.length === 0) {
       throw new ColumnError(
-        'No header names an address field (จังหวัด, อำเภอ, ตำบล, รหัสไปรษณีย์ / province, district, subdistrict, postal code). ' +
-          'Name the columns with --map, or pass --no-header.',
+        'No header names an address field (จังหวัด, อำเภอ, ตำบล, รหัสไปรษณีย์ / province, district, subdistrict, postal code) ' +
+          `in the first row (${header.length} column${header.length === 1 ? '' : 's'}). The header must be the first row of the file or sheet: a title or note above it is not supported, delete it first. ` +
+          'Otherwise name the columns with --map, or pass --no-header.',
       )
     }
     map = { ...(looksLikeHeader(header) ? detectColumns(header) : {}), ...applyMap(entries, header, header.length) }

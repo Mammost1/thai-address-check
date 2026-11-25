@@ -261,6 +261,17 @@ describe('checkFile refusals', () => {
     expect(await exists(join(dir, 'bad.checked.csv'))).toBe(false)
   })
 
+  it('a title row above the header is not supported, and the message says the header must be the first row (tac-harden T3)', async () => {
+    const csv = join(dir, 'title.csv')
+    await writeFile(csv, 'รายชื่อลูกค้า ประจำเดือนพฤศจิกายน\nชื่อ,ตำบล,รหัสไปรษณีย์\nสมชาย,เกาะพะงัน,84280\n')
+    await expect(checkFile({ input: csv })).rejects.toThrow(/header must be the first row of the file or sheet/)
+    await expect(checkFile({ input: csv })).rejects.toThrow(/in the first row \(1 column\)/)
+    const xlsx = join(dir, 'title.xlsx')
+    await writeXlsx(xlsx, { s: [['รายชื่อลูกค้า'], ['ชื่อ', 'ตำบล', 'รหัสไปรษณีย์'], ['สมชาย', 'เกาะพะงัน', 84280]] })
+    await expect(checkFile({ input: xlsx })).rejects.toThrow(/header must be the first row/)
+    expect(await exists(join(dir, 'title.checked.csv'))).toBe(false)
+  })
+
   it('rejects an old .xls', async () => {
     const input = join(dir, 'old.xls')
     await writeFile(input, 'x')
