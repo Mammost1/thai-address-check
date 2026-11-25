@@ -110,11 +110,11 @@ function mueangCandidates(provinces: readonly Province[] | undefined): District[
 function expandMueang(ctx: CheckContext, d: District): void {
   const given = ctx.output.district
   if (given === undefined || !isBareMueang(given)) return
+  // The output follows the language the district was WRITTEN in ('เมือง' -> Thai, 'Mueang' -> English),
+  // whatever language the province is in.
   const full = hasThai(given) ? d.name_th : d.name_en
-  const applied = ctx.normalized.applied
-  const rules = [...(applied.district ?? []), 'mueang-province']
-  applied.district = rules
-  ;(ctx.normalized as { district?: string }).district = full
+  const rules = [...(ctx.normalized.applied.district ?? []), 'mueang-province']
+  ctx.normalized = { ...ctx.normalized, district: full, applied: { ...ctx.normalized.applied, district: rules } }
   ctx.output = { ...ctx.output, district: full }
   const old = ctx.findings.findIndex((f) => f.code === 'FORMAT_NORMALIZED' && f.fields.length === 1 && f.fields[0] === 'district')
   const updated = formatFinding('district', ctx.input.district, full, rules)

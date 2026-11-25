@@ -117,7 +117,7 @@ export function check(input: AddressInput, options?: CheckOptions): CheckResult 
   const result: CheckResult = {
     status,
     input: ctx.input,
-    normalized,
+    normalized: ctx.normalized,
     output: ctx.output,
     findings: ctx.findings,
     suggestions: ctx.suggestions,

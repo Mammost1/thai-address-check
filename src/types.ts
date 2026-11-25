@@ -100,6 +100,11 @@ export interface CheckOptions {
 export interface CheckResult {
   status: Status
   input: AddressInput
+  /**
+   * The input after formatting cleanup: `normalize(input)`, plus a bare 'เมือง' / 'Mueang' district
+   * written in full when the data settles it (rule 'mueang-province' in `applied.district`). So
+   * `normalized.district` can differ from `normalize(input).district` ('เมืองเชียงใหม่' vs 'เมือง').
+   */
   normalized: NormalizedAddress
   /** Present when status is 'valid' or 'corrected'. */
   resolved?: ResolvedAddress
@@ -117,8 +122,12 @@ export interface CheckResult {
 export interface CheckContext {
   /** The caller's input, untouched. */
   readonly input: AddressInput
-  /** The input after `normalize()`. */
-  readonly normalized: NormalizedAddress
+  /**
+   * The input after `normalize()`, plus formatting a later step settles with the data (a bare 'เมือง'
+   * written as the full district, rule 'mueang-province'). A step that changes it assigns a NEW object;
+   * it never edits the one it was given, which a caller may hold (tac-night-2, review 357ddaed).
+   */
+  normalized: NormalizedAddress
   /** Options with every default filled in. */
   readonly options: Required<CheckOptions>
   /** Working field values. Starts as the normalized fields; an applied correction changes it. */
