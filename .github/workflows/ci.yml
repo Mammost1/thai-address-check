@@ -56,6 +56,11 @@ jobs:
           test "$code" -eq 1
           test -s "$RUNNER_TEMP/smoke.checked.csv"
           node -e "const r=JSON.parse(require('fs').readFileSync(process.env.RUNNER_TEMP+'/smoke.json','utf8'));if(r.rows!==2)process.exit(3)"
+      - name: Export smoke test (every exported row checks back as valid)
+        run: |
+          node dist/cli.js export --out "$RUNNER_TEMP/addresses.csv"
+          node dist/cli.js "$RUNNER_TEMP/addresses.csv" --no-fix --fail-over 0 --report "$RUNNER_TEMP/export.json"
+          node -e "const r=JSON.parse(require('fs').readFileSync(process.env.RUNNER_TEMP+'/export.json','utf8'));const m=require('thai-address-check');if(r.rows!==m.listAddresses().length||r.statuses.valid!==r.rows)process.exit(3)"
 
   web:
     name: web playground

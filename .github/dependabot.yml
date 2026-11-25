@@ -1,0 +1,20 @@
+# Data freshness: a new @geothai/core (the address data) opens a pull request the day it is published,
+# and CI runs on that pull request. The tests that pin the data version and its row counts
+# (test/export.test.ts) fail on purpose when the data changes, so a data bump is read, not merged blind.
+# Nothing is released by this: a release is still a maintainer-approved tag.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 5
+    groups:
+      # Everything except the data in one pull request, so the data bump stays on its own.
+      tooling:
+        patterns: ['*']
+        exclude-patterns: ['@geothai/core']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
