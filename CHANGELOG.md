@@ -3,6 +3,37 @@
 All notable changes to `thai-address-check`. Versions follow [semver](https://semver.org/).
 บันทึกการเปลี่ยนแปลงของ `thai-address-check` (ไทยก่อน อังกฤษตามหลัง)
 
+## 0.1.2 — 2026-11-25
+
+Hardening release: every problem found by a tester who used the published 0.1.1 like a stranger would.
+รุ่นปรับปรุงความน่าเชื่อถือ แก้ทุกปัญหาที่ผู้ทดสอบพบจากการใช้แพ็กเกจที่เผยแพร่แล้ว
+
+### Fixed / แก้ไข
+
+- **Wrong auto-correction (T1).** A name one character from two real names was rewritten to whichever scored higher
+  (ท่าวัก became ท่าซัก although ท่าวัง is as close). A correction now also needs the best candidate to be at least 0.15
+  ahead of the runner-up; otherwise both are suggestions and the finding carries `closeRunnerUp`. On every one-character typo
+  (delete, swap, substitute) of the 7,436 subdistrict names, wrong corrections went from 9 to 2 and 0.5% of the right ones became
+  suggestions; the 2 left have a unique closest real name that is not the intended one. The benchmark's "correctly fixed" falls by
+  0.3 to 1.4 points per misspelling class, "wrongly fixed" stays 0.0 (amendment A12 in `docs/TASKS.md`).
+- **`require('thai-address-check')` failed** with `ERR_PACKAGE_PATH_NOT_EXPORTED`; the exports map now has a `default` condition (T2).
+- **A long text cell stalled the checker** (about 0.27 ms per character, 28 s for 100,000 characters). Text over 64 characters is not
+  fuzzy-matched and is answered at once as an unknown name, with a short message (T10).
+- **Files:** rows made only of delimiters (`,,,`) are skipped and counted, no longer counted as invalid rows (T4); a wrong `--delimiter` stops with
+  the likely delimiter named instead of reporting 100% invalid (T5); a title row above the header gets a message saying the header must be the first
+  row (T3); `--out` into a missing directory says the output cannot be written, not "File not found" (T6); formatting cleanups are shown on their
+  own summary line, not as a "finding" (T8).
+- `check(undefined)`, `check(null)` and `check('text')` throw a clear `TypeError` (T11).
+- README: removed "Not on npm yet" from the English section; states the real limits (header first row, `.xlsx` read whole and `.xls` unsupported,
+  bundle size and the command that measures it, the web page reads CSV only and its download has different columns); competitor column re-run and
+  worded as re-run (R1, R2, R3, W1, W2, T9).
+
+### Added / เพิ่ม
+
+- `thai-address-check --version`; `--delimiter tab` (T7).
+- Web page: an end-to-end test suite under jsdom (single address, CSV upload as UTF-8, `;`, tab and TIS-620, check, download, title-row file,
+  empty file, 3,000 rows); CI checks `require()` and `import()` of the built package on Node 22.12 and 22.x.
+
 ## 0.1.1 — 2026-11-25
 
 ### Fixed / แก้ไข
