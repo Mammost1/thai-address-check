@@ -18,6 +18,7 @@ import {
   districtsByName,
   isPostalCodeInUse,
   provincesByName,
+  provinceByCode,
   resolvedByCode,
   resolvedOf,
   subdistrictsByName,
@@ -123,6 +124,236 @@ function judgePostalBySuccessors(ctx: CheckContext, addrs: readonly ResolvedAddr
   })
 }
 
+function has(v: string | undefined): v is string {
+  return v !== undefined && v.trim() !== ''
+}
+
+function place(a: ResolvedAddress): string {
+  return `${a.subdistrict.th} (${a.district.th} ${a.province.th})`
+}
+
+/**
+ * The unanchored case when the abolished homonym has NO successor in the data (150 of the 151 names
+ * in data 2026.10.23, e.g. Bangkok's บางเขน 100599; ruling e1ccb0e5). Nothing is filled and the
+ * result is invalid, since there is no list to choose from:
+ *   (b') the postal code is used in the abolished area's former district: say so, no mismatch
+ *        against the current homonym;
+ *   (c') no postal code: ask for the province or district;
+ *   (d') a postal code used by neither: the mismatch lists the current homonym's codes.
+ */
+function noSuccessor(ctx: CheckContext, name: string, areas: Abolished[], currentAddrs: ResolvedAddress[], postal: string | undefined): void {
+  const first = areas[0]!
+  const where = unique(areas.map((a) => provinceByCode(a.code.slice(0, 2))?.name_th ?? a.code.slice(0, 2))).join(', ')
+  const homonyms = currentAddrs.map(place).join(', ')
+  const formerDistricts = unique(areas.flatMap((a) => (a.parent_code ? [a.parent_code] : []))).filter((c) => districtByCode(c) !== undefined)
+  const former = formerDistricts.flatMap((c) => subdistrictsOf(c).map((x) => resolvedOf(x)))
+  const inFormer = postal === undefined ? [] : former.filter((a) => a.postalCodes.includes(postal))
+  const formerLabel = unique(inFormer.map((a) => `${a.district.th} ${a.province.th}`)).join(', ')
+
+  if (postal !== undefined && inFormer.length === 0) {
+    const expected = unique(currentAddrs.flatMap((a) => a.postalCodes)).sort()
+    ctx.findings.push({
+      code: 'POSTAL_CODE_MISMATCH',
+      severity: 'error',
+      fields: ['postalCode', 'subdistrict'],
+      message: {
+        th: `${LABEL_TH.postalCode} ${postal} ไม่ตรงกับ${LABEL_TH.subdistrict} "${name}" ที่มีอยู่ปัจจุบัน (${homonyms} ใช้ ${expected.join(', ')})`,
+        en: `Postal code ${postal} does not belong to the current "${name}" (${homonyms} uses ${expected.join(', ')}).`,
+      },
+      detail: { given: postal, against: { field: 'subdistrict', value: name, unanchored: true }, expected, expectedTotal: expected.length },
+    })
+  }
+  const reasonTh =
+    inFormer.length > 0
+      ? `${LABEL_TH.postalCode} ${postal} ใช้ใน ${formerLabel} ซึ่งเป็นที่ตั้งเดิม จึงไม่ถือว่าเป็น ${homonyms}`
+      : `ไม่มี${LABEL_TH.province}หรือ${LABEL_TH.district} จึงไม่สรุปว่าเป็น ${homonyms}`
+  const reasonEn =
+    inFormer.length > 0
+      ? `Postal code ${postal} is used in ${formerLabel}, where it was, so this is not taken as ${homonyms}.`
+      : `With no province or district, it is not assumed to be ${homonyms}.`
+  ctx.findings.push({
+    code: 'ABOLISHED_AREA',
+    severity: 'error',
+    fields: ['subdistrict'],
+    message: {
+      th: `"${name}" เป็นชื่อของพื้นที่ที่ถูกยุบใน ${where} ด้วย (เมื่อ ${first.abolished_on}) และข้อมูลไม่ระบุพื้นที่ที่มาแทน ${reasonTh} ให้ระบุ${LABEL_TH.province}หรือ${LABEL_TH.district}`,
+      en: `"${name}" also names an abolished area in ${where} (abolished ${first.abolished_on}) and the data lists no successor. ${reasonEn} Give the province or district.`,
+    },
+    detail: {
+      given: name,
+      level: 'subdistrict',
+      unanchored: true,
+      abolished: areas.map(areaDetail),
+      basis: null,
+      successors: [],
+      current: currentAddrs.map((a) => ({ code: a.subdistrictCode, district: a.district.th, province: a.province.th, postalCodes: a.postalCodes })),
+      ...(inFormer.length > 0 ? { postalCodeUsedIn: unique(inFormer.map((a) => a.districtCode)) } : {}),
+      applied: false,
+    },
+  })
+  ctx.candidates = []
+  // Suggestions only: the current homonym, and the former district when the postal code points there.
+  const pool = [...currentAddrs, ...unique(inFormer.map((a) => a.districtCode)).map((c) => inFormer.find((a) => a.districtCode === c)!)]
+  const perField = new Map<Field, number>()
+  for (const x of ctx.suggestions) perField.set(x.field, (perField.get(x.field) ?? 0) + 1)
+  for (const addr of pool) {
+    for (const field of ['province', 'district'] as const) {
+      const k = perField.get(field) ?? 0
+      if (k >= ctx.options.maxSuggestions) continue
+      perField.set(field, k + 1)
+      ctx.suggestions.push({ field, from: undefined, to: officialName(field, addr), confidence: CONFIDENCE_AMBIGUOUS, reason: currentAddrs.includes(addr) ? 'AMBIGUOUS' : 'ABOLISHED_AREA', resolved: addr })
+    }
+  }
+}
+
+/**
+ * tac-night F10/F11 (ruling 41de56ed). A bare subdistrict name, with neither province nor district,
+ * that is current somewhere AND also named an abolished area elsewhere: 0.1.2 filled the current
+ * homonym ('บางนา' became Phra Nakhon Si Ayutthaya / มหาราช / 13150) and judged a postal code against it
+ * alone ('บางนา 10260' was "it uses 13150", though 10260 is the code of Bangkok's successors). That is a
+ * guess, so with no parent field:
+ *   (a) a postal code a current homonym uses settles it: nothing changes here;
+ *   (b) a postal code only the successors use: they are the candidates (ambiguous when several), never applied;
+ *   (c) no postal code: no fill; the current homonyms and the successors are all candidates (ambiguous);
+ *   (d) a postal code neither uses: invalid, the mismatch lists the codes of both, never applied.
+ * With a province or a district given (anchored), or for a name never abolished elsewhere, nothing changes.
+ *
+ * @returns true when it decided the address (the rest of `checkAbolished` is skipped).
+ */
+function checkUnanchoredHomonym(ctx: CheckContext): boolean {
+  const n = ctx.normalized
+  if (has(n.province) || has(n.district) || !has(n.subdistrict)) return false
+  const name = n.subdistrict
+  const current = subdistrictsByName(name)
+  if (current.length === 0) return false // current nowhere: the anchored path below explains it
+  const currentDistricts = new Set(current.map((x) => x.district_code))
+  const currentCodes = new Set(current.map((x) => x.code))
+  const areas = abolishedByName(name, 'subdistrict').filter((a) => a.parent_code === null || !currentDistricts.has(a.parent_code))
+  // When ANY record's successor IS a current homonym (บึงกาฬ: the old Nong Khai record points to today's
+  // Bueng Kan one), the data itself links the old name to the current place: the fill stays. Old records
+  // with no successor are often the same place before a province split, which the data cannot show, so
+  // that link is taken as settling the name (ruling e1ccb0e5, rule B).
+  if (areas.some((a) => a.successors.some((c) => currentCodes.has(c)))) return false
+  const successors = unique(areas.flatMap((a) => a.successors))
+    .filter((code) => !currentCodes.has(code))
+    .map((code) => resolvedByCode(code))
+    .filter((a): a is ResolvedAddress => a !== undefined)
+  if (areas.length === 0) return false
+
+  const written = n.postalCode
+  const postal = has(written) && /^\d{5}$/.test(written) && isPostalCodeInUse(written) ? written : undefined
+  if (has(written) && postal === undefined) return false // malformed or unused: validate's finding stands
+  const currentAddrs = current.map((x) => resolvedOf(x))
+  if (postal !== undefined && currentAddrs.some((a) => a.postalCodes.includes(postal))) return false // (a)
+
+  // Undo what validate concluded from the current homonym alone: its fill and its postal verdict.
+  const kept: Partial<Record<Field, string>> = {}
+  for (const f of ['province', 'district', 'subdistrict', 'postalCode'] as const) if (n[f] !== undefined) kept[f] = n[f]
+  ctx.output = kept
+  ctx.suggestions = ctx.suggestions.filter((x) => x.reason !== 'MISSING_FIELD' && x.field !== 'postalCode')
+  ctx.findings = ctx.findings.filter((f) => !['MISSING_FIELD', 'POSTAL_CODE_MISMATCH', 'AMBIGUOUS'].includes(f.code))
+
+  if (successors.length === 0) {
+    noSuccessor(ctx, name, areas, currentAddrs, postal)
+    return true
+  }
+
+  const using = postal === undefined ? successors : successors.filter((a) => a.postalCodes.includes(postal))
+  const candidates = postal === undefined ? [...currentAddrs, ...successors] : using
+  const basis = effectiveBasis(areas)
+  const first = areas[0]!
+  const where = unique(areas.map((a) => provinceByCode(a.code.slice(0, 2))?.name_th ?? a.code.slice(0, 2))).join(', ')
+  const now = successors.map(place).join(', ')
+  const homonyms = currentAddrs.map(place).join(', ')
+
+  if (postal !== undefined && using.length === 0) {
+    // (d) Neither side uses the code: say so with the codes of both, so the reader sees both places.
+    const expected = unique([...currentAddrs, ...successors].flatMap((a) => a.postalCodes)).sort()
+    ctx.findings.push({
+      code: 'POSTAL_CODE_MISMATCH',
+      severity: 'error',
+      fields: ['postalCode', 'subdistrict'],
+      message: {
+        th: `${LABEL_TH.postalCode} ${postal} ไม่ตรงกับ${LABEL_TH.subdistrict} "${name}" ที่ใดเลย (ปัจจุบัน ${homonyms} และพื้นที่ที่มาแทน "${name}" เดิมใน ${where} ใช้ ${expected.join(', ')})`,
+        en: `Postal code ${postal} belongs to no place named "${name}" (the current ${homonyms} and the areas that replaced the old "${name}" in ${where} use ${expected.join(', ')}).`,
+      },
+      detail: { given: postal, against: { field: 'subdistrict', value: name, unanchored: true }, expected, expectedTotal: expected.length },
+    })
+  }
+
+  const several = candidates.length > 1
+  ctx.findings.push({
+    code: 'ABOLISHED_AREA',
+    severity: several ? 'warning' : 'error',
+    fields: ['subdistrict'],
+    message: {
+      th:
+        `"${name}" เป็นชื่อของพื้นที่ที่ถูกยุบใน ${where} ด้วย (เมื่อ ${first.abolished_on}) ปัจจุบันแทนด้วย ${now} ` +
+        (postal !== undefined && using.length > 0
+          ? `และ${LABEL_TH.postalCode} ${postal} เป็นของพื้นที่ที่มาแทน จึงไม่ถือว่าเป็น ${homonyms}`
+          : `ไม่มี${LABEL_TH.province}หรือ${LABEL_TH.district} จึงไม่สรุปว่าเป็น ${homonyms}`) +
+        ' ไม่แก้ให้อัตโนมัติ',
+      en:
+        `"${name}" also names an abolished area in ${where} (abolished ${first.abolished_on}); it is now ${now}. ` +
+        (postal !== undefined && using.length > 0
+          ? `Postal code ${postal} belongs to the areas that replaced it, so this is not taken as ${homonyms}.`
+          : `With no province or district, it is not assumed to be ${homonyms}.`) +
+        ' Nothing is corrected automatically.',
+    },
+    detail: {
+      given: name,
+      level: 'subdistrict',
+      unanchored: true,
+      abolished: areas.map(areaDetail),
+      basis,
+      successors: successors.map((a) => ({ code: a.subdistrictCode, th: a.subdistrict.th, en: a.subdistrict.en, district: a.district.th, province: a.province.th, postalCodes: a.postalCodes })),
+      current: currentAddrs.map((a) => ({ code: a.subdistrictCode, district: a.district.th, province: a.province.th, postalCodes: a.postalCodes })),
+      applied: false,
+    },
+  })
+
+  if (several && (postal === undefined || using.length > 0)) {
+    const needs: Field[] = ['province', 'district', ...(postal === undefined ? (['postalCode'] as Field[]) : [])]
+    ctx.findings.push({
+      code: 'AMBIGUOUS',
+      severity: 'error',
+      fields: needs,
+      message: {
+        th: `มี ${candidates.length} ที่อยู่ที่ตรงกับข้อมูลนี้ ต้องระบุเพิ่ม: ${needs.map((f) => LABEL_TH[f]).join(', ')}`,
+        en: `${candidates.length} addresses fit this input; add: ${needs.map((f) => (f === 'postalCode' ? 'postal code' : f)).join(', ')}.`,
+      },
+      detail: {
+        count: candidates.length,
+        needs,
+        options: candidates.slice(0, 10).map((a) => ({ province: a.province.th, district: a.district.th, subdistrict: a.subdistrict.th, postalCodes: a.postalCodes })),
+        optionsTotal: candidates.length,
+      },
+    })
+  }
+  ctx.candidates = several && (postal === undefined || using.length > 0) ? candidates : []
+
+  // Suggestions only: where each candidate is, never applied.
+  const perField = new Map<Field, number>()
+  for (const x of ctx.suggestions) perField.set(x.field, (perField.get(x.field) ?? 0) + 1)
+  const pool = postal !== undefined && using.length === 0 ? [...currentAddrs, ...successors] : candidates
+  for (const addr of pool) {
+    for (const field of ['province', 'district'] as const) {
+      const k = perField.get(field) ?? 0
+      if (k >= ctx.options.maxSuggestions) continue
+      perField.set(field, k + 1)
+      ctx.suggestions.push({
+        field,
+        from: undefined,
+        to: officialName(field, addr),
+        confidence: CONFIDENCE_AMBIGUOUS,
+        reason: currentCodes.has(addr.subdistrictCode) ? 'AMBIGUOUS' : 'ABOLISHED_AREA',
+        resolved: addr,
+      })
+    }
+  }
+  return true
+}
+
 /**
  * Reports names or codes that belong to abolished areas (ABOLISHED_AREA) with their successors
  * and the evidence basis, and corrects only on a gazette-notice basis with exactly one successor.
@@ -130,6 +361,7 @@ function judgePostalBySuccessors(ctx: CheckContext, addrs: readonly ResolvedAddr
  * under the given parent.
  */
 export function checkAbolished(ctx: CheckContext): void {
+  if (checkUnanchoredHomonym(ctx)) return
   if (ctx.candidates.length > 0) return
   const { province, district, subdistrict, postalCode } = ctx.output
   if (!district && !subdistrict) return
