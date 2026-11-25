@@ -43,6 +43,15 @@ describe('normalize', () => {
     expect(r.applied.postalCode).toEqual(['thai-digits'])
   })
 
+  // tac-night F13: '50200.0' (a spreadsheet number) used to become '502000' by deleting the dot.
+  it('drops a zero decimal a spreadsheet adds before keeping the digits', () => {
+    expect(normalize({ postalCode: '50200.0' })).toMatchObject({ postalCode: '50200', applied: { postalCode: ['postal-decimal-zero'] } })
+    expect(normalize({ postalCode: '50200.00' }).postalCode).toBe('50200')
+    expect(normalize({ postalCode: '๕๐๒๐๐.๐' }).postalCode).toBe('50200')
+    expect(normalize({ postalCode: '50200.5' }).postalCode).toBe('502005') // not a zero decimal: left to the format check
+    expect(normalize({ postalCode: '5020.0' }).postalCode).toBe('50200'.slice(0, 4) + '0') // only 5-digit codes are read as numbers
+  })
+
   it('keeps only the digits of a postal code', () => {
     expect(normalize({ postalCode: '84 000' })).toMatchObject({ postalCode: '84000', applied: { postalCode: ['postal-digits-only'] } })
     expect(normalize({ postalCode: '10200.' }).postalCode).toBe('10200')

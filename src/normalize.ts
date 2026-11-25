@@ -14,6 +14,7 @@ export type NormalizeRule =
   | 'whitespace'
   | 'strip-prefix'
   | 'bangkok-alias'
+  | 'postal-decimal-zero'
   | 'postal-digits-only'
 
 const FIELDS: readonly Field[] = ['province', 'district', 'subdistrict', 'postalCode']
@@ -126,7 +127,12 @@ function bangkokAlias(s: Step): Step {
 
 function normalizeField(field: Field, raw: string): Step {
   let s = cleanCharacters({ value: raw, rules: [] })
-  if (field === 'postalCode') return step(s, 'postal-digits-only', s.value.replace(/\D/g, ''))
+  if (field === 'postalCode') {
+    // A spreadsheet that stored the code as a number writes it back as '50200.0'. Deleting the dot
+    // alone would make '502000', a code nobody wrote (tac-night F13), so a zero decimal goes first.
+    s = step(s, 'postal-decimal-zero', s.value.replace(/^(\d{5})\.0+$/, '$1'))
+    return step(s, 'postal-digits-only', s.value.replace(/\D/g, ''))
+  }
   s = stripPrefix(field, s)
   if (field === 'province') s = bangkokAlias(s)
   return s

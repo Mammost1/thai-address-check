@@ -261,7 +261,14 @@ function postalFindings(names: Resolved, postalCode: string, hierarchy: Subdistr
   return [postalMismatch(level, names, postalCode, undefined)]
 }
 
-function postalInvalid(given: string, reason: 'format' | 'not-in-use', expected: string[] | undefined): Finding {
+/**
+ * @param given - The postal code after formatting cleanup (what was judged).
+ * @param written - What the caller wrote; quoted in the message when cleanup changed it, so the
+ *   message never shows only a code the caller did not write (tac-night F13: '50200.0' read as '502000').
+ */
+function postalInvalid(given: string, reason: 'format' | 'not-in-use', expected: string[] | undefined, written?: string): Finding {
+  const raw = written === undefined ? given : written.trim()
+  const quoted = raw === given ? { th: `"${given}"`, en: `"${given}"` } : { th: `"${raw}" (อ่านได้เป็น "${given}")`, en: `"${raw}" (read as "${given}")` }
   const why =
     reason === 'format'
       ? { th: 'ต้องเป็นตัวเลข 5 หลัก', en: 'it must be exactly 5 digits' }
@@ -274,9 +281,9 @@ function postalInvalid(given: string, reason: 'format' | 'not-in-use', expected:
     'POSTAL_CODE_INVALID',
     'error',
     ['postalCode'],
-    `${LABEL_TH.postalCode} "${given}" ใช้ไม่ได้: ${why.th}${hint.th}`,
-    `Postal code "${given}" is invalid: ${why.en}${hint.en}.`,
-    { given, reason, ...(expected && expected.length > 0 ? { expected } : {}) },
+    `${LABEL_TH.postalCode} ${quoted.th} ใช้ไม่ได้: ${why.th}${hint.th}`,
+    `Postal code ${quoted.en} is invalid: ${why.en}${hint.en}.`,
+    { given, reason, ...(raw === given ? {} : { written: raw }), ...(expected && expected.length > 0 ? { expected } : {}) },
   )
 }
 
@@ -413,11 +420,12 @@ export function validate(ctx: CheckContext): void {
   // The postal code: its shape, then its fit with the names.
   let postalOk = false
   if (postal !== undefined) {
-    if (!/^\d{5}$/.test(postal)) findings.push(postalInvalid(postal, 'format', undefined))
+    const written = ctx.input.postalCode === undefined || ctx.input.postalCode === null ? undefined : String(ctx.input.postalCode)
+    if (!/^\d{5}$/.test(postal)) findings.push(postalInvalid(postal, 'format', undefined, written))
     else if (!isPostalCodeInUse(postal)) {
       // Tell the caller which codes the (otherwise consistent) address does use.
       const fitting = links.length === 0 && hierarchy ? unique(hierarchy.flatMap((s) => s.postal_codes)).sort() : []
-      findings.push(postalInvalid(postal, 'not-in-use', fitting.length <= POSTAL_LIST_CAP ? fitting : undefined))
+      findings.push(postalInvalid(postal, 'not-in-use', fitting.length <= POSTAL_LIST_CAP ? fitting : undefined, written))
     } else {
       postalOk = true
       findings.push(...postalFindings(names, postal, hierarchy))
