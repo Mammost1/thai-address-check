@@ -21,6 +21,22 @@ Seed your own table from the same data the checker uses, and know which data you
 - `.github/dependabot.yml`: a new `@geothai/core` opens its own pull request (daily check); CI runs on it. CI also checks that
   every exported row checks back as valid.
 
+### Fixed / แก้ไข (found by a tester using the published 0.1.2)
+
+- **A bare subdistrict name was resolved by guessing (F10, F11).** With neither province nor district, a name that also belonged to
+  an abolished area elsewhere was filled from the current place (`บางนา` became Phra Nakhon Si Ayutthaya / มหาราช / 13150), and a postal
+  code was judged against that place alone (`บางนา` + `10260` said "it uses 13150", though 10260 is Bangkok's). Now nothing is filled:
+  the result is `ambiguous` with `ABOLISHED_AREA` explaining both places; a postal code of the current place still settles it, a code of the
+  successors (or of the abolished area's former district) points there, and a code of neither lists the codes of both. Names whose old
+  record points to the current place (`บึงกาฬ`) are filled as before. 212 of 5,849 subdistrict names are affected in data 2026.10.23
+  (`node docs/known-limits.mjs`). An `AMBIGUOUS` finding now makes the status `ambiguous` even when the choice is not a list of current addresses.
+- **`อ.เมือง` was rejected (F12)** as a misspelling with an unrelated suggestion (`คูเมือง`). A district written `เมือง`, `อ.เมือง`, `Mueang` or
+  `Muang` is the capital district of the province (`FORMAT_NORMALIZED`, rule `mueang-province`); bare `เมือง` is never fuzzy-matched.
+- **`50200.0` became `502000` (F13).** A spreadsheet number's zero decimal is dropped first (rule `postal-decimal-zero`), and an invalid
+  postal code is quoted as written ("50200.5" (read as "502005")).
+- **`export | head` printed an EPIPE stack trace (F17);** a reader that closes the pipe early now ends the command quietly.
+- README: commands use `npx thai-address-check` (F14); `checkMany()` is a generator (F15); more known limits (F16).
+
 ### Changed / เปลี่ยน
 
 - **Bangkok district names written as the dataset writes them are no longer rewritten.** `เขตพระนคร` used to come back `valid`

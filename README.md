@@ -45,12 +45,17 @@ check({ subdistrict: 'ศรีภูมิ', postalCode: '50200' })
 ระดับ info ความหมายไม่เปลี่ยน)
 
 ตัวเลือกใน `check(input, options)`: `autoCorrectThreshold` (ค่าเริ่มต้น 0.9), `autoCorrect: false`
-(รายงานอย่างเดียว ไม่แก้), `maxSuggestions` (ค่าเริ่มต้น 3) สำหรับข้อมูลจำนวนมากใช้ `checkMany(rows)`
+(รายงานอย่างเดียว ไม่แก้), `maxSuggestions` (ค่าเริ่มต้น 3) สำหรับข้อมูลจำนวนมากใช้ `checkMany(rows)` ซึ่งคืนค่าเป็น generator
+(ตรวจทีละแถวเมื่อวนอ่าน ไม่มี `.length`) ถ้าต้องการ array ใช้ `[...checkMany(rows)]`
+
+อำเภอที่เขียนว่า `เมือง`, `อ.เมือง`, `Mueang` หรือ `Muang` หมายถึงอำเภอเมืองของจังหวัดที่ระบุ (เช่น เชียงใหม่ + `อ.เมือง` = `เมืองเชียงใหม่`)
+ผลเป็น `valid` พร้อม `FORMAT_NORMALIZED` กฎ `mueang-province` ถ้าไม่ระบุจังหวัดจะใช้ตำบลและรหัสไปรษณีย์ช่วยหาเมื่อเหลือที่เดียว
+กรุงเทพฯ และพระนครศรีอยุธยาไม่มีอำเภอชื่อ "เมือง..." จึงไม่ขยายให้ เขตของกรุงเทพฯ เขียนได้ทั้ง `เขตพระนคร` และ `พระนคร`
 
 ## ตัวอย่างที่ 3: ตรวจทั้งไฟล์ CSV/Excel
 
 ```bash
-thai-address-check customers.csv --out customers.checked.csv --report summary.json --fail-over 5
+npx thai-address-check customers.csv --out customers.checked.csv --report summary.json --fail-over 5
 ```
 
 หาคอลัมน์จังหวัด/อำเภอ/ตำบล/รหัสไปรษณีย์จากหัวตารางเอง (ชื่อไทยหรืออังกฤษ) ถ้าหาไม่เจอให้ระบุเอง
@@ -77,8 +82,8 @@ thai-address-check customers.csv --out customers.checked.csv --report summary.js
 แทนการหาไฟล์ JSON จากอินเทอร์เน็ตแล้วแก้เองทีละแถว ให้ส่งออกข้อมูลอ้างอิงชุดเดียวกับที่ใช้ตรวจ:
 
 ```bash
-thai-address-check export > addresses.csv                         # CSV (ค่าเริ่มต้น) ออกทาง stdout
-thai-address-check export --format json --out addresses.json      # หรือ JSON ลงไฟล์
+npx thai-address-check export > addresses.csv                     # CSV (ค่าเริ่มต้น) ออกทาง stdout
+npx thai-address-check export --format json --out addresses.json  # หรือ JSON ลงไฟล์
 ```
 
 ในโค้ด: `import { listAddresses, dataVersion } from 'thai-address-check'` ได้ข้อมูลชุดเดียวกันเป็น array
@@ -96,7 +101,7 @@ thai-address-check export --format json --out addresses.json      # หรือ
 - ข้อมูลใช้สัญญาอนุญาต CC BY 4.0: ถ้านำไปเผยแพร่หรือแสดงต่อ ต้องใส่เครดิตตาม[ส่วนเครดิตข้อมูล](#เครดิตข้อมูล-attribution)
   คำสั่ง `export` พิมพ์บรรทัดเครดิตทาง stderr ทุกครั้ง (ไม่ปนกับข้อมูล)
 
-**ตรวจตารางที่มีอยู่แล้ว:** ส่งออกตารางของคุณเป็น CSV แล้วรัน `thai-address-check my-table.csv --no-fix` อ่านคอลัมน์ `tac_codes`
+**ตรวจตารางที่มีอยู่แล้ว:** ส่งออกตารางของคุณเป็น CSV แล้วรัน `npx thai-address-check my-table.csv --no-fix` อ่านคอลัมน์ `tac_codes`
 ของแต่ละแถว (เช่น `POSTAL_CODE_MISMATCH` คือรหัสไปรษณีย์ไม่ใช่ของตำบลนั้น) หัวตารางแบบเดียวกับที่ `export` เขียน
 (`province_name_th`, …, `postal_code`) หาคอลัมน์ได้เองโดยไม่ต้องใช้ `--map`
 
@@ -219,6 +224,12 @@ Reproduce: `npm run bench` · seed 20261125 · 300 rows per class · 1500 clean 
 - **ขนาดบนเบราว์เซอร์:** เมื่อ bundle ไลบรารีรวมข้อมูล GeoThai ทั้งชุด ได้ประมาณ 886 KB (minified) หรือประมาณ 159 KB (gzip) ตัวเลขนี้ได้จาก
   `npm run build` แล้ว `npx esbuild dist/index.js --bundle --minify --format=esm --platform=neutral | wc -c` (ต่อด้วย `| gzip -9 | wc -c` สำหรับ gzip)
   และขึ้นกับ bundler
+<!-- homonyms-th:start -->
+- **ชื่อตำบลอย่างเดียว (ไม่มีจังหวัดหรืออำเภอ):** 212 จาก 5,849 ชื่อตำบล (ข้อมูลรุ่น `2026.10.23`) เคยเป็นชื่อของพื้นที่ที่ถูกยุบในที่อื่นด้วย จึงได้ `ambiguous` และไม่เติมจังหวัด/อำเภอให้ (เช่น "บางนา" ไม่ถูกเติมเป็นพระนครศรีอยุธยา) บางชื่อเป็นที่เดียวกันก่อนแยกจังหวัด (เช่น ศาลาลำดวน) แต่ข้อมูลไม่ได้เชื่อมไว้จึงบอกไม่ได้ ใส่จังหวัด อำเภอ หรือรหัสไปรษณีย์ที่ตรงกันเพื่อให้ตรวจได้ (นับด้วย `node docs/known-limits.mjs`)
+<!-- homonyms-th:end -->
+- **ข้อจำกัดอื่นที่ผู้ทดสอบพบ:** ถ้าใส่ชื่ออำเภอกับตำบลสลับช่อง จะได้ `UNKNOWN_NAME` หรือ `MISSPELLED_NAME` โดยไม่บอกว่าน่าจะสลับกัน, ช่องที่ใส่ที่อยู่ทั้งบรรทัด (เช่น "เชียงใหม่ 50200")
+  ได้ `UNKNOWN_NAME`, ตำบลที่มีรหัสไปรษณีย์หลายรหัสแต่ไม่ได้ใส่รหัส ได้ `valid` พร้อม `MISSING_FIELD` ระดับ info (กรองเฉพาะ `tac_status=valid` จึงอาจได้แถวที่รหัสว่าง)
+  และชื่อสั้นที่พิมพ์ผิดหนึ่งตัวอักษรมักไม่ถูกแก้เอง (ความมั่นใจต่ำกว่า 0.9 โดยตั้งใจ)
 - **การแก้ชื่อที่พิมพ์ผิดแบบอัตโนมัติ** ไม่ทำเมื่อมีชื่อจริงอีกชื่อที่ใกล้เคียงกัน (ห่างกันไม่ถึง 0.15 ในความมั่นใจ) จะเสนอทั้งสองชื่อให้เลือกเอง แต่การพิมพ์ผิดที่ใกล้ชื่อจริงอีกชื่อ
   มากกว่าชื่อที่ตั้งใจเขียน ยังถูกแก้ไปเป็นชื่ออื่นได้ (พบน้อยมากในการทดลองกับการพิมพ์ผิดทีละตัวอักษรของทุกตำบล) ตรวจผลก่อนใช้กับข้อมูลสำคัญ
 
@@ -310,12 +321,17 @@ check({ subdistrict: 'ศรีภูมิ', postalCode: '50200' })
 
 Formatting is normalised too (`กรุงเทพ` becomes `กรุงเทพมหานคร`; `FORMAT_NORMALIZED`, severity info, meaning unchanged).
 Options of `check(input, options)`: `autoCorrectThreshold` (default 0.9), `autoCorrect: false` (report only),
-`maxSuggestions` (default 3). Use `checkMany(rows)` for large inputs.
+`maxSuggestions` (default 3). Use `checkMany(rows)` for large inputs: it returns a generator (each row is checked as you
+iterate; it has no `.length`), so use `[...checkMany(rows)]` when you need an array.
+A district written `เมือง`, `อ.เมือง`, `Mueang` or `Muang` means the capital district of the given province (เชียงใหม่ + `อ.เมือง` =
+`เมืองเชียงใหม่`): `valid` with `FORMAT_NORMALIZED`, rule `mueang-province`. Without a province, the subdistrict and postal code decide when
+exactly one place fits. Bangkok and Phra Nakhon Si Ayutthaya have no "เมือง…" district, so it is not expanded there. Bangkok districts are
+accepted both as `เขตพระนคร` and `พระนคร`.
 
 ### Example 3: check a whole CSV/Excel file
 
 ```bash
-thai-address-check customers.csv --out customers.checked.csv --report summary.json --fail-over 5
+npx thai-address-check customers.csv --out customers.checked.csv --report summary.json --fail-over 5
 ```
 
 Columns are found from the header (Thai or English names); override with `--map`, for example
@@ -331,8 +347,8 @@ Rows in which every cell is empty (such as `,,,`) are skipped and counted in the
 Instead of a JSON file found on the internet and patched by hand, export the same reference data the checker uses:
 
 ```bash
-thai-address-check export > addresses.csv                         # CSV (default) on stdout
-thai-address-check export --format json --out addresses.json      # or JSON into a file
+npx thai-address-check export > addresses.csv                     # CSV (default) on stdout
+npx thai-address-check export --format json --out addresses.json  # or JSON into a file
 ```
 
 In code: `import { listAddresses, dataVersion } from 'thai-address-check'` gives the same rows as an array.
@@ -350,7 +366,7 @@ In code: `import { listAddresses, dataVersion } from 'thai-address-check'` gives
 - The data is CC BY 4.0: if you publish or display it, keep the credit from [Attribution](#attribution). `export` prints the credit line
   on stderr every time (never mixed into the data).
 
-**Audit a table you already have:** export your table to CSV, run `thai-address-check my-table.csv --no-fix`, and read each row's
+**Audit a table you already have:** export your table to CSV, run `npx thai-address-check my-table.csv --no-fix`, and read each row's
 `tac_codes` (for example `POSTAL_CODE_MISMATCH`: the postal code is not one of that subdistrict's). The headers `export` writes
 (`province_name_th`, …, `postal_code`) are found without `--map`.
 
@@ -416,6 +432,13 @@ measures **simulated** errors, not real customer data. **Speed:** the README quo
   as a whole sheet into memory (CSV is streamed) and `.xls` is not supported (save as `.xlsx` or `.csv`).
 - **Size in a browser bundle:** bundling the library includes the whole GeoThai dataset: about 886 KB minified, about 159 KB gzipped. Re-run with
   `npm run build` then `npx esbuild dist/index.js --bundle --minify --format=esm --platform=neutral | wc -c` (add `| gzip -9 | wc -c` for gzip); it depends on the bundler.
+<!-- homonyms-en:start -->
+- **Subdistrict name alone (no province or district):** 212 of 5,849 subdistrict names (data `2026.10.23`) also named an abolished area elsewhere, so they come back `ambiguous` and nothing is filled (`บางนา` is not filled as Phra Nakhon Si Ayutthaya). Some are the same place before a province split (`ศาลาลำดวน`), which the data does not link, so it cannot tell. Give the province, the district or a postal code that matches. (Counted by `node docs/known-limits.mjs`.)
+<!-- homonyms-en:end -->
+- **Other limits a tester found:** district and subdistrict swapped between columns give `UNKNOWN_NAME` or `MISSPELLED_NAME` with no hint that they are swapped; a whole
+  address in one field ("เชียงใหม่ 50200") gives `UNKNOWN_NAME`; a subdistrict with several postal codes and no code given is `valid` with an info
+  `MISSING_FIELD` (so filtering on `tac_status=valid` can keep rows with an empty postal code); a one-character typo in a short name is often not
+  corrected automatically (confidence below 0.9, on purpose).
 - **Automatic correction of misspelled names** is not applied when another real name is nearly as close (less than 0.15 apart in confidence): both
   are suggested and you choose. A typo that happens to be closer to a different real name than to the intended one can still be corrected to
   that other name (very rare in a trial on every one-character typo of every subdistrict): review the result before using it on important data.
