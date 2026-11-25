@@ -51,8 +51,10 @@ export interface CheckFileOptions {
 export interface FileSummary {
   input: string
   output: string
-  /** Data rows checked (the header row is not counted). */
+  /** Data rows checked (the header row is not counted, nor are blank rows). */
   rows: number
+  /** Rows in which every cell was empty (for example `,,,,`): skipped, not counted as invalid. */
+  blankRowsSkipped: number
   statuses: Record<Status, number>
   /** Share of rows that are invalid, in percent (0 for an empty file). */
   invalidPercent: number
@@ -202,6 +204,7 @@ export async function checkFile(options: CheckFileOptions): Promise<FileSummary>
     input: options.input,
     output,
     rows: 0,
+    blankRowsSkipped: 0,
     statuses: { valid: 0, corrected: 0, ambiguous: 0, invalid: 0 },
     invalidPercent: 0,
     findings: {},
@@ -218,6 +221,12 @@ export async function checkFile(options: CheckFileOptions): Promise<FileSummary>
   try {
     if (header) await writer.row([...header, ...ADDED_COLUMNS])
     const handle = async (row: string[]): Promise<void> => {
+      // A row of only delimiters is as empty as an empty line (csv-parse already drops those) or a
+      // blank .xlsx row: it is not a customer with a missing address, so it must not count as invalid.
+      if (row.every((cell) => cell.trim() === '')) {
+        summary.blankRowsSkipped++
+        return
+      }
       const result = check(inputOf(row, map), checkOptions)
       summary.rows++
       summary.statuses[result.status]++

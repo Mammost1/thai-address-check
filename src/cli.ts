@@ -64,6 +64,7 @@ export function formatSummary(s: FileSummary): string {
     `ตรวจ ${s.rows.toLocaleString('en-US')} แถว / checked ${s.rows.toLocaleString('en-US')} rows in ${(s.elapsedMs / 1000).toFixed(1)} s (data ${s.dataVersion})`,
     `  valid ${s.statuses.valid} (${pct(s.statuses.valid, s.rows)}) · corrected ${s.statuses.corrected} (${pct(s.statuses.corrected, s.rows)}) · ambiguous ${s.statuses.ambiguous} (${pct(s.statuses.ambiguous, s.rows)}) · invalid ${s.statuses.invalid} (${pct(s.statuses.invalid, s.rows)})`,
   ]
+  if (s.blankRowsSkipped > 0) lines.push(`  skipped ${s.blankRowsSkipped} blank row${s.blankRowsSkipped === 1 ? '' : 's'} (every cell empty)`)
   const codes = Object.keys(s.findings).sort((a, b) => FINDING_ORDER.indexOf(a) - FINDING_ORDER.indexOf(b))
   if (codes.length > 0) lines.push(`  findings: ${codes.map((c) => `${c} ${s.findings[c]}`).join(' · ')}`)
   lines.push(`  columns: ${Object.entries(s.columns).map(([f, c]) => `${f}="${c}"`).join(' ')}${s.autoCorrect ? '' : ' (report only, no changes)'}`)

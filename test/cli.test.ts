@@ -128,6 +128,18 @@ describe('a run', () => {
   })
 })
 
+describe('--fail-over and blank rows (tac-harden T4)', () => {
+  it('rows made only of delimiters do not count as invalid and cannot trip --fail-over', async () => {
+    const input = join(dir, 'blank.csv')
+    await writeFile(input, 'ตำบล,รหัสไปรษณีย์\nเกาะพะงัน,84280\n,\n,\n,\n')
+    const r = await run([input, '--fail-over', '0', '--out', join(dir, 'o.csv'), '--report', join(dir, 'r.json')])
+    expect(r.code).toBe(0)
+    expect(r.err).toContain('checked 1 rows')
+    expect(r.err).toContain('skipped 3 blank rows')
+    expect(JSON.parse(await readText(join(dir, 'r.json')))).toMatchObject({ rows: 1, blankRowsSkipped: 3, invalidPercent: 0 })
+  })
+})
+
 describe('--fail-over', () => {
   // 150 generated rows (~4% invalid) keep three passes well inside the timeout on a slow machine.
   it('exits 1 when the invalid share is over the limit, 0 when it is not, and never when it is not asked', { timeout: 30_000 }, async () => {
@@ -171,6 +183,7 @@ describe('formatSummary', () => {
       input: 'a.csv',
       output: 'a.checked.csv',
       rows: 1000,
+      blankRowsSkipped: 0,
       statuses: { valid: 900, corrected: 50, ambiguous: 10, invalid: 40 },
       invalidPercent: 4,
       findings: { POSTAL_CODE_MISMATCH: 30, FORMAT_NORMALIZED: 120, AMBIGUOUS: 10 },
@@ -190,11 +203,19 @@ describe('formatSummary', () => {
     expect(text).toContain('a.checked.csv')
   })
 
+  it('says how many blank rows were skipped, only when there were some', () => {
+    const base = { input: 'a', output: 'b', rows: 10, blankRowsSkipped: 0, statuses: { valid: 10, corrected: 0, ambiguous: 0, invalid: 0 }, invalidPercent: 0, findings: {}, columns: {}, encoding: 'utf-8', delimiter: ',', autoCorrect: true, dataVersion: 'x', elapsedMs: 0 }
+    expect(formatSummary(base)).not.toContain('blank')
+    expect(formatSummary({ ...base, blankRowsSkipped: 1 })).toContain('skipped 1 blank row (every cell empty)')
+    expect(formatSummary({ ...base, blankRowsSkipped: 7 })).toContain('skipped 7 blank rows')
+  })
+
   it('shows 0.0% for an empty file instead of NaN', () => {
     const text = formatSummary({
       input: 'a',
       output: 'b',
       rows: 0,
+      blankRowsSkipped: 0,
       statuses: { valid: 0, corrected: 0, ambiguous: 0, invalid: 0 },
       invalidPercent: 0,
       findings: {},

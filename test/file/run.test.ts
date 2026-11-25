@@ -196,11 +196,45 @@ describe('checkFile input handling', () => {
     expect((await checkFile({ input, output: join(dir, 'o2.csv'), autoCorrectThreshold: 1 })).statuses.corrected).toBe(0)
   })
 
-  it('counts an all-blank address row as invalid, not as an error of the file', async () => {
+  it('skips rows made only of delimiters and counts them; a row with a name but no address is still invalid (tac-harden T4)', async () => {
     const input = join(dir, 'blank.csv')
-    await writeFile(input, 'ตำบล,รหัสไปรษณีย์\n,\nเกาะพะงัน,84280\n')
+    await writeFile(input, 'ชื่อ,ตำบล,รหัสไปรษณีย์\n,,\nสมชาย,เกาะพะงัน,84280\n , ,  \nสมหญิง,,\n\n,,\n')
     const summary = await checkFile({ input })
-    expect(summary.statuses).toMatchObject({ invalid: 1 })
+    expect(summary.rows).toBe(2) // สมชาย and สมหญิง; the three blank rows are not data
+    expect(summary.blankRowsSkipped).toBe(3) // ',,' ' , ,  ' ',,' (the empty line is dropped by the parser)
+    expect(summary.statuses.invalid).toBe(1) // สมหญิง has no address at all
+    expect(summary.statuses.corrected).toBe(1) // สมชาย: province and district filled from the code
+    const out = await readCsvFile(summary.output)
+    expect(out).toHaveLength(3) // header + 2 rows: blank rows are not written
+  })
+
+  it('a file of 200 rows plus delimiter-only rows reports 200 rows and 0 invalid (the tester\'s case)', async () => {
+    const input = join(dir, 'many.csv')
+    const lines = ['ตำบล,รหัสไปรษณีย์']
+    for (let i = 0; i < 200; i++) lines.push('เกาะพะงัน,84280')
+    lines.splice(50, 0, ',', ',')
+    await writeFile(input, `${lines.join('\n')}\n`)
+    const summary = await checkFile({ input })
+    expect(summary.rows).toBe(200)
+    expect(summary.blankRowsSkipped).toBe(2)
+    expect(summary.statuses.invalid).toBe(0)
+    expect(summary.invalidPercent).toBe(0)
+  })
+
+  it('a blank .xlsx row is skipped the same way', async () => {
+    const input = join(dir, 'blank.xlsx')
+    await writeXlsx(input, { s: [['ตำบล', 'รหัสไปรษณีย์'], ['เกาะพะงัน', 84280], ['', ''], ['เกาะพะงัน', 84280]] })
+    const summary = await checkFile({ input })
+    expect(summary.rows).toBe(2)
+    expect(summary.statuses.invalid).toBe(0)
+  })
+
+  it('without a header, a blank first row is skipped too', async () => {
+    const input = join(dir, 'nohead-blank.csv')
+    await writeFile(input, ',\nเกาะพะงัน,84280\n')
+    const summary = await checkFile({ input, header: false, map: ['subdistrict=1,postalCode=2'] })
+    expect(summary.rows).toBe(1)
+    expect(summary.blankRowsSkipped).toBe(1)
   })
 
   it('handles a file with only a header', async () => {
