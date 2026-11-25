@@ -70,7 +70,7 @@ thai-address-check customers.csv --out customers.checked.csv --report summary.js
 รหัสออก: `0` เสร็จ · `1` สัดส่วน invalid เกิน `--fail-over` · `2` อาร์กิวเมนต์หรือไฟล์มีปัญหา
 (ข้อความข้างต้นตรวจได้ด้วย `thai-address-check --help`) `thai-address-check --version` พิมพ์เลขเวอร์ชัน
 `--delimiter` รับอักขระตัวเดียวหรือคำว่า `tab` ถ้าระบุผิด (เช่น ไฟล์คั่นด้วย `,` แต่ใส่ `;`) จะหยุดพร้อมบอกตัวคั่นที่น่าจะใช่
-แถวที่ทุกเซลล์ว่าง (เช่น `,,,`) จะถูกข้ามและแจ้งจำนวนในสรุป ไม่นับเป็นแถวที่ผิด
+แถวที่ทุกเซลล์ว่าง (เช่น `,,,`) จะถูกข้ามและแจ้งจำนวนในสรุป ไม่นับเป็นแถวที่ผิด แถวเหล่านี้ไม่อยู่ในไฟล์ผลลัพธ์ด้วย ดังนั้นแถวที่ N ของผลลัพธ์อาจไม่ตรงกับแถวที่ N ของไฟล์ต้นฉบับ
 
 ## ติดตั้ง
 
@@ -285,7 +285,7 @@ Columns are found from the header (Thai or English names); override with `--map`
 Options are listed in the Thai table above and in `thai-address-check --help`. Exit codes: `0` done ·
 `1` invalid share over `--fail-over` · `2` bad arguments or file problem. `thai-address-check --version` prints the version.
 `--delimiter` takes one character or the word `tab`; a wrong one (a comma file given `;`) stops with the likely delimiter named.
-Rows in which every cell is empty (such as `,,,`) are skipped and counted in the summary, not counted as invalid.
+Rows in which every cell is empty (such as `,,,`) are skipped and counted in the summary, not counted as invalid. They are also left out of the output file, so output row N no longer lines up with input row N.
 
 ### Install
 

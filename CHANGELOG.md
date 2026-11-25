@@ -13,7 +13,7 @@ Hardening release: every problem found by a tester who used the published 0.1.1 
 - **Wrong auto-correction (T1).** A name one character from two real names was rewritten to whichever scored higher
   (ท่าวัก became ท่าซัก although ท่าวัง is as close). A correction now also needs the best candidate to be at least 0.15
   ahead of the runner-up; otherwise both are suggestions and the finding carries `closeRunnerUp`. On every one-character typo
-  (delete, swap, substitute) of the 7,436 subdistrict names, wrong corrections went from 9 to 2 and 0.5% of the right ones became
+  (delete, swap, substitute) of the 7,436 subdistrict names (the maintainer's replay of all 153,561 typos; the tester's separate harness, with its own typo set, measured 12 to 5), wrong corrections went from 9 to 2 and 0.5% of the right ones became
   suggestions; the 2 left have a unique closest real name that is not the intended one. The benchmark's "correctly fixed" falls by
   0.3 to 1.4 points per misspelling class, "wrongly fixed" stays 0.0 (amendment A12 in `docs/TASKS.md`).
 - **`require('thai-address-check')` failed** with `ERR_PACKAGE_PATH_NOT_EXPORTED`; the exports map now has a `default` condition (T2).
