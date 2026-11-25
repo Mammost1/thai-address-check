@@ -14,11 +14,15 @@ export class ColumnError extends Error {
 
 const FIELDS: readonly Field[] = ['province', 'district', 'subdistrict', 'postalCode']
 
-/** Header texts (after `headerKey`) that name each field. */
+/**
+ * Header texts (after `headerKey`) that name each field. The `…nameth` entries are the headers
+ * `thai-address-check export` writes (province_name_th …), so an exported table, or a database table
+ * seeded from one, is checked without `--map`: the Thai name column is the exact match.
+ */
 const SYNONYMS: Record<Field, readonly string[]> = {
-  province: ['จังหวัด', 'province', 'changwat', 'จ'],
-  district: ['อำเภอ', 'เขต', 'อำเภอเขต', 'เขตอำเภอ', 'district', 'amphoe', 'amphur', 'khet'],
-  subdistrict: ['ตำบล', 'แขวง', 'ตำบลแขวง', 'แขวงตำบล', 'subdistrict', 'tambon', 'tambol', 'khwaeng'],
+  province: ['จังหวัด', 'province', 'changwat', 'จ', 'provincename', 'provincenameth'],
+  district: ['อำเภอ', 'เขต', 'อำเภอเขต', 'เขตอำเภอ', 'district', 'amphoe', 'amphur', 'khet', 'districtname', 'districtnameth'],
+  subdistrict: ['ตำบล', 'แขวง', 'ตำบลแขวง', 'แขวงตำบล', 'subdistrict', 'tambon', 'tambol', 'khwaeng', 'subdistrictname', 'subdistrictnameth'],
   postalCode: ['รหัสไปรษณีย์', 'ไปรษณีย์', 'รหัสปณ', 'ปณ', 'zipcode', 'zip', 'postalcode', 'postcode', 'postal'],
 }
 

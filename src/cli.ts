@@ -4,6 +4,7 @@
  *
  *   thai-address-check <file> [--out f] [--report f.json] [--threshold n] [--no-fix]
  *                      [--fail-over pct] [--map field=column] [--sheet s] [--no-header]
+ *   thai-address-check export [--format csv|json] [--out f] [--no-bom]
  *
  * Exit code: 0 done, 1 the invalid share is over --fail-over, 2 bad arguments or a file problem.
  */
@@ -12,14 +13,47 @@ import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
+import { dataVersion, listAddresses } from './export'
 import { ColumnError } from './file/columns'
+import { CSV_BOM, CsvWriter, csvRecord } from './file/csv'
 import { checkFile, defaultOutputPath, type FileSummary } from './file/run'
+import type { AddressRow } from './types'
 
 /** Where the command writes; replaced in tests. */
 export interface Io {
   stdout: (text: string) => void
   stderr: (text: string) => void
 }
+
+/** Credit required by CC BY 4.0 wherever this package emits data (see NOTICE). */
+export const CREDIT =
+  'Address data © 2026 Pongsakorn Thipayanate ("GeoThai"), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), via @geothai/core. See NOTICE.'
+
+const DATA_LINES = `Data version: ${dataVersion}
+${CREDIT}
+`
+
+const EXPORT_COLUMNS = [
+  'province_code',
+  'province_name_th',
+  'province_name_en',
+  'district_code',
+  'district_name_th',
+  'district_name_en',
+  'subdistrict_code',
+  'subdistrict_name_th',
+  'subdistrict_name_en',
+  'postal_code',
+] as const
+
+const EXPORT_USAGE = `thai-address-check export [--format csv|json] [--out <file>]
+ส่งออกข้อมูลอ้างอิงทั้งชุด (Write the reference data: one row per subdistrict + postal code)
+
+  --format <csv|json>  csv (default): header ${EXPORT_COLUMNS[0]} ... ${EXPORT_COLUMNS[9]};
+                       json: an array of { provinceCode, ..., postalCode }
+  --out <file>         write to a file (default: stdout)
+  --no-bom             CSV without the UTF-8 byte-order mark
+`
 
 const USAGE = `thai-address-check <file.csv|file.xlsx> [options]
 ตรวจที่อยู่ไทยทั้งไฟล์ (Check a whole file of Thai addresses)
@@ -42,7 +76,9 @@ Options:
 
 Exit code: 0 done; 1 invalid share over --fail-over; 2 bad arguments or file problem.
 Output columns added: tac_status, tac_codes, tac_message, tac_changes.
-`
+
+${EXPORT_USAGE}
+${DATA_LINES}`
 
 const FINDING_ORDER = [
   'PARENT_MISMATCH',
@@ -121,6 +157,92 @@ function fileErrorMessage(e: NodeJS.ErrnoException, input: string, out: string |
   return e.code === 'ENOENT' ? `File not found: ${e.path ?? input}` : e.message
 }
 
+function exportCells(r: AddressRow): string[] {
+  return [
+    r.provinceCode,
+    r.provinceNameTh,
+    r.provinceNameEn,
+    r.districtCode,
+    r.districtNameTh,
+    r.districtNameEn,
+    r.subdistrictCode,
+    r.subdistrictNameTh,
+    r.subdistrictNameEn,
+    r.postalCode,
+  ]
+}
+
+/** JSON of the rows: one row per line, so the file diffs line by line between data versions. */
+function exportJson(rows: readonly AddressRow[]): string {
+  return rows.length === 0 ? '[]\n' : `[\n${rows.map((r) => JSON.stringify(r)).join(',\n')}\n]\n`
+}
+
+/**
+ * `thai-address-check export`: the reference data as CSV or JSON, on stdout or in a file. The data
+ * goes to stdout (or the file) only; the row count and the credit line go to stderr.
+ */
+export async function exportMain(argv: string[], io: Io): Promise<number> {
+  let values
+  try {
+    ;({ values } = parseArgs({
+      args: argv,
+      allowPositionals: false,
+      options: {
+        format: { type: 'string', default: 'csv' },
+        out: { type: 'string' },
+        'no-bom': { type: 'boolean' },
+        help: { type: 'boolean', short: 'h' },
+      },
+    }))
+  } catch (error) {
+    io.stderr(`${(error as Error).message}\n\n${EXPORT_USAGE}`)
+    return 2
+  }
+  if (values.help) {
+    io.stdout(`${EXPORT_USAGE}\n${DATA_LINES}`)
+    return 0
+  }
+  const format = values.format
+  if (format !== 'csv' && format !== 'json') {
+    io.stderr(`Unknown --format "${format}": use csv or json.\n\n${EXPORT_USAGE}`)
+    return 2
+  }
+  const rows = listAddresses()
+  const bom = !values['no-bom']
+  try {
+    if (values.out === undefined) {
+      if (format === 'json') io.stdout(exportJson(rows))
+      else {
+        // In chunks, so a pipe gets data early and no single string holds the whole file.
+        let chunk = (bom ? CSV_BOM : '') + csvRecord(EXPORT_COLUMNS)
+        for (const r of rows) {
+          chunk += csvRecord(exportCells(r))
+          if (chunk.length >= 64 * 1024) {
+            io.stdout(chunk)
+            chunk = ''
+          }
+        }
+        io.stdout(chunk)
+      }
+    } else if (format === 'json') {
+      await writeFile(values.out, exportJson(rows))
+    } else {
+      const writer = new CsvWriter(values.out, ',', bom)
+      await writer.row(EXPORT_COLUMNS)
+      for (const r of rows) await writer.row(exportCells(r))
+      await writer.close()
+    }
+  } catch (error) {
+    const e = error as NodeJS.ErrnoException
+    io.stderr(`thai-address-check: Cannot write output ${values.out}: ${WRITE_REASON[e.code ?? ''] ?? e.message}\n`)
+    return 2
+  }
+  io.stderr(
+    `exported ${rows.length.toLocaleString('en-US')} rows (data ${dataVersion}) as ${format}${values.out === undefined ? '' : ` -> ${values.out}`}\n${CREDIT}\n`,
+  )
+  return 0
+}
+
 /**
  * Runs the command.
  *
@@ -129,6 +251,8 @@ function fileErrorMessage(e: NodeJS.ErrnoException, input: string, out: string |
  * @returns The exit code: 0, 1 (over `--fail-over`) or 2 (bad arguments, unreadable file).
  */
 export async function main(argv: string[], io: Io): Promise<number> {
+  // 'export' is a command word; a file with that exact name is checked as ./export.
+  if (argv[0] === 'export') return exportMain(argv.slice(1), io)
   let parsed
   try {
     parsed = parseArgs({

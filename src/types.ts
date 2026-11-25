@@ -31,6 +31,23 @@ export interface ResolvedAddress {
   postalCodes: string[]
 }
 
+/**
+ * One row of the reference data as `listAddresses()` gives it: one per (subdistrict, postal code).
+ * Names are the dataset's own, unmodified (Bangkok districts keep their 'เขต' prefix).
+ */
+export interface AddressRow {
+  provinceCode: string
+  provinceNameTh: string
+  provinceNameEn: string
+  districtCode: string
+  districtNameTh: string
+  districtNameEn: string
+  subdistrictCode: string
+  subdistrictNameTh: string
+  subdistrictNameEn: string
+  postalCode: string
+}
+
 /** Stable machine codes of every finding. */
 export type FindingCode =
   | 'MISSING_FIELD' // a field needed to decide is absent

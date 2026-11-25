@@ -100,6 +100,14 @@ export function csvLine(cells: readonly string[], delimiter = ','): string {
   return cells.map((c) => csvCell(c, delimiter)).join(delimiter)
 }
 
+/** The UTF-8 byte-order mark every CSV this package writes starts with, unless asked not to (Excel needs it for Thai). */
+export const CSV_BOM = '\uFEFF'
+
+/** One row as a CSV record: the line plus the CRLF line break (RFC 4180). */
+export function csvRecord(cells: readonly string[], delimiter = ','): string {
+  return `${csvLine(cells, delimiter)}\r\n`
+}
+
 /** A buffered CSV writer that waits for the disk when it falls behind. */
 export class CsvWriter {
   private readonly stream: WriteStream
@@ -112,12 +120,12 @@ export class CsvWriter {
     bom: boolean,
   ) {
     this.stream = createWriteStream(path, { encoding: 'utf8' })
-    if (bom) this.buffer.push('﻿')
+    if (bom) this.buffer.push(CSV_BOM)
   }
 
   /** Adds one row; flushes to the file (and waits if the file is slow) every 64 KB. */
   async row(cells: readonly string[]): Promise<void> {
-    const line = `${csvLine(cells, this.delimiter)}\r\n`
+    const line = csvRecord(cells, this.delimiter)
     this.buffer.push(line)
     this.size += line.length
     if (this.size >= 64 * 1024) await this.flush()

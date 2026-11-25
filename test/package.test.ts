@@ -42,12 +42,12 @@ describe.skipIf(!existsSync(resolve(ROOT, 'dist/index.js')))('require() and impo
     const r = run(['-e', "const m=require('thai-address-check');process.stdout.write(Object.keys(m).sort().join(',')+'|'+m.check({subdistrict:'เกาะพะงัน',postalCode:'84280'}).status)"])
     expect(r.stderr.replace(/\(node:\d+\)[^\n]*\n?|\(Use `node --trace[^\n]*\n?/g, '')).toBe('') // an experimental warning on 22.12 is allowed
     expect(r.status).toBe(0)
-    expect(r.stdout).toBe('check,checkMany,normalize|corrected')
+    expect(r.stdout).toBe('check,checkMany,dataVersion,listAddresses,normalize|corrected')
   })
 
   it('import("thai-address-check") gives the same exports', () => {
     const r = run(['--input-type=module', '-e', "import('thai-address-check').then(m=>process.stdout.write(Object.keys(m).sort().join(',')))"])
     expect(r.status).toBe(0)
-    expect(r.stdout).toBe('check,checkMany,normalize')
+    expect(r.stdout).toBe('check,checkMany,dataVersion,listAddresses,normalize')
   })
 })

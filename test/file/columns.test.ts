@@ -10,6 +10,12 @@ describe('headerKey', () => {
 })
 
 describe('detectColumns', () => {
+  it('finds the Thai name columns of an export header (tac-night), and plain *_name headers', () => {
+    const exported = ['province_code', 'province_name_th', 'province_name_en', 'district_code', 'district_name_th', 'district_name_en', 'subdistrict_code', 'subdistrict_name_th', 'subdistrict_name_en', 'postal_code']
+    expect(detectColumns(exported)).toEqual({ province: 1, district: 4, subdistrict: 7, postalCode: 9 })
+    expect(detectColumns(['id', 'province_name', 'district_name', 'subdistrict_name', 'zipcode'])).toEqual({ province: 1, district: 2, subdistrict: 3, postalCode: 4 })
+  })
+
   it('finds Thai headers', () => {
     expect(detectColumns(['ชื่อ', 'จังหวัด', 'อำเภอ', 'ตำบล', 'รหัสไปรษณีย์'])).toEqual({
       province: 1,
