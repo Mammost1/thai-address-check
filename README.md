@@ -68,7 +68,9 @@ thai-address-check customers.csv --out customers.checked.csv --report summary.js
 | `--sheet`, `--delimiter`, `--no-header`, `--no-bom`, `--quiet` | ดู `thai-address-check --help` |
 
 รหัสออก: `0` เสร็จ · `1` สัดส่วน invalid เกิน `--fail-over` · `2` อาร์กิวเมนต์หรือไฟล์มีปัญหา
-(ข้อความข้างต้นตรวจได้ด้วย `thai-address-check --help`)
+(ข้อความข้างต้นตรวจได้ด้วย `thai-address-check --help`) `thai-address-check --version` พิมพ์เลขเวอร์ชัน
+`--delimiter` รับอักขระตัวเดียวหรือคำว่า `tab` ถ้าระบุผิด (เช่น ไฟล์คั่นด้วย `,` แต่ใส่ `;`) จะหยุดพร้อมบอกตัวคั่นที่น่าจะใช่
+แถวที่ทุกเซลล์ว่าง (เช่น `,,,`) จะถูกข้ามและแจ้งจำนวนในสรุป ไม่นับเป็นแถวที่ผิด
 
 ## ติดตั้ง
 
@@ -81,6 +83,8 @@ node dist/cli.js customers.csv         # ลองใช้คำสั่ง
 ```
 
 ติดตั้งจาก npm: `npm install thai-address-check` หรือรันทันที `npx thai-address-check <file>`
+ใช้ในโค้ดได้ทั้ง `import { check } from 'thai-address-check'` และ `require('thai-address-check')` (`require()` โหลดโมดูล ES ตรง ๆ
+ซึ่ง Node 22.12 ขึ้นไปทำได้ ทดสอบแล้วบน Node 24 และ CI มีขั้นตอนตรวจทั้งสองแบบบน Node 22.12 และ 22.x)
 
 หน้าเว็บ (ลากไฟล์หรือวางที่อยู่แล้วเห็นผล ทุกอย่างประมวลผลในเบราว์เซอร์):
 
@@ -174,6 +178,13 @@ Reproduce: `npm run bench` · seed 20261125 · 300 rows per class · 1500 clean 
 - ชื่อตำบลที่ซ้ำกันมี 795 ชื่อ ต้องใช้ช่องอื่นช่วยตัดสิน ถ้าช่องไม่พอจะได้ `AMBIGUOUS` ไม่ใช่การเดา
 - ตารางความแม่นยำวัดบนข้อผิดพลาดที่ **จำลองขึ้น** ไม่ใช่ข้อมูลลูกค้าจริง ข้อมูลจริงอาจผิดแบบอื่นที่ชุดทดสอบไม่ได้ครอบคลุม
 - **ความเร็ว:** README ไม่ระบุเวลาเป็นมิลลิวินาที เพราะขึ้นกับเครื่อง เป้าหมายการออกแบบคือเฉลี่ยต่ำกว่า 5 ms ต่อการตรวจหนึ่งรายการบนชุดทดสอบ (เป็นเป้าหมาย ไม่ใช่ค่าที่วัดแล้วรับรอง) กรณีที่ช้าที่สุดคือชื่อตำบลที่สะกดผิดโดยไม่มีช่องอื่นช่วย เพราะต้องไล่เทียบกับชื่อตำบลทั้งหมด 7,436 ชื่อ ซึ่งช้ากว่าค่าเฉลี่ยชัดเจนและเรายอมรับข้อนี้ ให้รัน `npm run bench` เพื่อวัดบนเครื่องของคุณ
+- **ไฟล์:** หัวตารางต้องอยู่ **แถวแรก** ของไฟล์หรือชีต ไม่รองรับแถวชื่อเรื่องหรือหมายเหตุเหนือหัวตาราง (ให้ลบก่อน) `.xlsx` ถูกอ่านทั้งชีตเข้าหน่วยความจำ
+  (CSV อ่านแบบ streaming) และไม่รองรับ `.xls` (บันทึกเป็น `.xlsx` หรือ `.csv` ก่อน)
+- **ขนาดบนเบราว์เซอร์:** เมื่อ bundle ไลบรารีรวมข้อมูล GeoThai ทั้งชุด ได้ประมาณ 885 KB (minified) หรือประมาณ 158 KB (gzip) ตัวเลขนี้ได้จาก
+  `npm run build` แล้ว `npx esbuild dist/index.js --bundle --minify --format=esm --platform=neutral | wc -c` (ต่อด้วย `| gzip -9 | wc -c` สำหรับ gzip)
+  และขึ้นกับ bundler
+- **การแก้ชื่อที่พิมพ์ผิดแบบอัตโนมัติ** ไม่ทำเมื่อมีชื่อจริงอีกชื่อที่ใกล้เคียงกัน (ห่างกันไม่ถึง 0.15 ในความมั่นใจ) จะเสนอทั้งสองชื่อให้เลือกเอง แต่การพิมพ์ผิดที่ใกล้ชื่อจริงอีกชื่อ
+  มากกว่าชื่อที่ตั้งใจเขียน ยังถูกแก้ไปเป็นชื่ออื่นได้ (พบน้อยมากในการทดลองกับการพิมพ์ผิดทีละตัวอักษรของทุกตำบล) ตรวจผลก่อนใช้กับข้อมูลสำคัญ
 
 **ไม่อยู่ในขอบเขต:** การแกะที่อยู่จากข้อความอิสระ, ระดับบ้านเลขที่/ถนน/ซอย/หมู่บ้าน, พิกัดและแผนที่, ชุดข้อมูลของตัวเอง,
 บริการออนไลน์ที่ต้องมีเซิร์ฟเวอร์ (ดูเหตุผลใน [`PLAN.md`](PLAN.md))
@@ -264,11 +275,13 @@ Columns are found from the header (Thai or English names); override with `--map`
 `--map subdistrict=ต.,postalCode=5`. The output is a CSV with four added columns (`tac_status`, `tac_codes`,
 `tac_message`, `tac_changes`) plus a summary on screen. `.xlsx` input is supported (`--sheet`).
 Options are listed in the Thai table above and in `thai-address-check --help`. Exit codes: `0` done ·
-`1` invalid share over `--fail-over` · `2` bad arguments or file problem.
+`1` invalid share over `--fail-over` · `2` bad arguments or file problem. `thai-address-check --version` prints the version.
+`--delimiter` takes one character or the word `tab`; a wrong one (a comma file given `;`) stops with the likely delimiter named.
+Rows in which every cell is empty (such as `,,,`) are skipped and counted in the summary, not counted as invalid.
 
 ### Install
 
-Not on npm yet. From the project folder (Node 22.12 or newer):
+From source, to work on the code or try the latest version (Node 22.12 or newer):
 
 ```bash
 npm ci
@@ -276,7 +289,9 @@ npm run build
 node dist/cli.js customers.csv
 ```
 
-Install: `npm install thai-address-check`, or run `npx thai-address-check <file>`.
+Install: `npm install thai-address-check`, or run `npx thai-address-check <file>`. In code, both
+`import { check } from 'thai-address-check'` and `require('thai-address-check')` work (`require()` loads the ES module directly, which Node 22.12
+and newer can do; tested on Node 24, and CI has a step that checks both forms on Node 22.12 and 22.x).
 Web page: `npm --prefix web ci`, then `npm --prefix web run dev` (try it) or `npm --prefix web run build`
 (`web/dist/`, with a Content-Security-Policy that blocks any connection leaving the browser).
 
@@ -313,6 +328,14 @@ Four fields only; no free-text address parsing, no house/road/soi level, no coor
 fixed automatically; 1,071 are name matches (suggested, never applied) and 401 have no successor (source: `docs/recon.md`).
 795 subdistrict names are shared by several places, so ambiguous input yields `AMBIGUOUS`, not a guess. The accuracy table
 measures **simulated** errors, not real customer data. **Speed:** the README quotes no milliseconds, because they depend on the machine. The design target is an average under 5 ms per check on the benchmark mix (a target, not a certified measurement); the slowest case is a misspelled subdistrict with no other field to help, which scans all 7,436 subdistrict names; that case is clearly slower than the average and we accept it. Run `npm run bench` to measure your own machine.
+
+- **Files:** the header must be the **first row** of the file or sheet; a title or note above it is not supported (delete it first). `.xlsx` is read
+  as a whole sheet into memory (CSV is streamed) and `.xls` is not supported (save as `.xlsx` or `.csv`).
+- **Size in a browser bundle:** bundling the library includes the whole GeoThai dataset: about 885 KB minified, about 158 KB gzipped. Re-run with
+  `npm run build` then `npx esbuild dist/index.js --bundle --minify --format=esm --platform=neutral | wc -c` (add `| gzip -9 | wc -c` for gzip); it depends on the bundler.
+- **Automatic correction of misspelled names** is not applied when another real name is nearly as close (less than 0.15 apart in confidence): both
+  are suggested and you choose. A typo that happens to be closer to a different real name than to the intended one can still be corrected to
+  that other name (very rare in a trial on every one-character typo of every subdistrict): review the result before using it on important data.
 
 ### Dependencies
 
