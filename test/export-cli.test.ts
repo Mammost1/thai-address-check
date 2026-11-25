@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
@@ -142,5 +142,16 @@ describe.skipIf(!existsSync(resolve(__dirname, '../dist/cli.js')))('built comman
     expect(r.stdout.split('\r\n')[0]).toBe(HEADER)
     expect(r.stdout.split('\r\n').length - 2).toBe(rows.length)
     expect(r.stderr).toContain(CREDIT)
+  })
+  // tac-night F17: `export --format json | head` printed an EPIPE stack trace.
+  it.each([['csv'], ['json']])('a reader that closes early (like head) ends it quietly: %s', async (format) => {
+    const child = spawn(process.execPath, [resolve(__dirname, '../dist/cli.js'), 'export', '--format', format], { stdio: ['ignore', 'pipe', 'pipe'] })
+    let err = ''
+    child.stderr.on('data', (d: Buffer) => (err += d.toString()))
+    await new Promise<void>((ok) => child.stdout.once('data', () => ok()))
+    child.stdout.destroy()
+    const code = await new Promise<number | null>((ok) => child.on('close', (c) => ok(c)))
+    expect(err).not.toMatch(/EPIPE|node:events|at /)
+    expect(code).toBe(0)
   })
 })

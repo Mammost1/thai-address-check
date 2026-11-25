@@ -332,6 +332,12 @@ function isEntryPoint(): boolean {
 }
 
 if (isEntryPoint()) {
+  // A reader that stops early (`export | head`) closes the pipe: that is a normal end, not a crash
+  // with a stack trace (tac-night F17).
+  process.stdout.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EPIPE') process.exit(0)
+    throw error
+  })
   main(process.argv.slice(2), {
     stdout: (t) => process.stdout.write(t),
     stderr: (t) => process.stderr.write(t),
