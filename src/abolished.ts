@@ -89,16 +89,19 @@ function successorLabel(h: Hit): string {
  * The postal code of a row whose subdistrict resolves ONLY as an abolished name is judged against
  * the codes of its successors (those that stand for the areas matched under the given parents), not
  * against a same-name subdistrict somewhere else: people still write แขวงบางนา 10260 and 10260 is the
- * code of both successors. `validate` cannot know this, so any POSTAL_CODE_MISMATCH it raised for the
- * subdistrict is replaced here: no finding when a successor uses the code, otherwise one that names the
- * successors' codes as the expected ones (never a code from another province). A code that is not
+ * code of both successors. `validate` cannot know this, so every POSTAL_CODE_MISMATCH it raised (at
+ * subdistrict level, or at district level when the name is current nowhere, e.g. บางบอน) is replaced
+ * here: no finding when a successor uses the code, otherwise exactly one that names the successors'
+ * codes as the expected ones (never a code from another province). A code that is not
  * 5 digits or not in use anywhere keeps its POSTAL_CODE_INVALID finding, and with no successor there
  * is nothing to compare with, so validate's finding stays.
  */
 function judgePostalBySuccessors(ctx: CheckContext, addrs: readonly ResolvedAddress[], given: string): void {
   const postal = ctx.output.postalCode
   if (addrs.length === 0 || !postal || !/^\d{5}$/.test(postal) || !isPostalCodeInUse(postal)) return
-  ctx.findings = ctx.findings.filter((f) => !(f.code === 'POSTAL_CODE_MISMATCH' && f.fields.includes('subdistrict')))
+  // Whatever level validate judged the code at (subdistrict, or district when the name is current
+  // nowhere), the successors now decide: drop its mismatches so at most one is reported.
+  ctx.findings = ctx.findings.filter((f) => f.code !== 'POSTAL_CODE_MISMATCH')
   if (addrs.some((a) => a.postalCodes.includes(postal))) return
   const expected = unique(addrs.flatMap((a) => a.postalCodes)).sort()
   const shown = expected.slice(0, 30)

@@ -210,6 +210,23 @@ describe('checkAbolished: the postal code is judged against the successors (tac-
     }
   })
 
+  it('an abolished name that is current NOWHERE (บางบอน) gets exactly one mismatch, not a district-level one plus a subdistrict-level one', () => {
+    for (const district of ['เขตบางบอน', 'บางบอน']) {
+      const row = { province: 'กรุงเทพมหานคร', district, subdistrict: 'บางบอน' }
+      const wrong = check({ ...row, postalCode: '50200' })
+      const found = wrong.findings.filter((f) => f.code === 'POSTAL_CODE_MISMATCH')
+      expect(found, district).toHaveLength(1)
+      expect(found[0]?.fields).toEqual(['postalCode', 'subdistrict'])
+      expect(found[0]?.detail).toMatchObject({ given: '50200', expected: ['10150'], against: { abolished: true } })
+      expect(wrong.status).toBe('invalid')
+      expect(wrong.findings.map((f) => f.code)).toContain('ABOLISHED_AREA')
+      // The right code (a successor's) is no mismatch at all.
+      const right = check({ ...row, postalCode: '10150' })
+      expect(right.findings.some((f) => f.code === 'POSTAL_CODE_MISMATCH')).toBe(false)
+      expect(right.status).toBe('ambiguous')
+    }
+  })
+
   it('a code that is not valid keeps its own finding and gets no mismatch on top', () => {
     for (const postalCode of ['1026', '00000']) {
       const r = check({ ...BANG_NA, postalCode })
