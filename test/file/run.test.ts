@@ -272,6 +272,29 @@ describe('checkFile refusals', () => {
     expect(await exists(join(dir, 'title.checked.csv'))).toBe(false)
   })
 
+  it('a wrong --delimiter stops with the likely delimiter named, instead of checking nonsense (tac-harden T5)', async () => {
+    const comma = join(dir, 'comma.csv')
+    await writeFile(comma, 'ชื่อ,ตำบล,รหัสไปรษณีย์\nสมชาย,เกาะพะงัน,84280\n')
+    await expect(checkFile({ input: comma, delimiter: ';' })).rejects.toThrow(/only one column but contains ",": the delimiter is probably ",", not ";" \(as given by --delimiter\)\. Pass --delimiter ","/)
+    const semi = join(dir, 'semi.csv')
+    await writeFile(semi, 'ชื่อ;ตำบล;รหัสไปรษณีย์\nสมชาย;เกาะพะงัน;84280\n')
+    await expect(checkFile({ input: semi, delimiter: ',' })).rejects.toThrow(/probably ";"/)
+    const tab = join(dir, 'tab.csv')
+    await writeFile(tab, 'ชื่อ\tตำบล\tรหัสไปรษณีย์\nสมชาย\tเกาะพะงัน\t84280\n')
+    await expect(checkFile({ input: tab, delimiter: ',' })).rejects.toThrow(/Pass --delimiter tab/)
+    // Nothing is written for a refused file, and the right or the sniffed delimiter works.
+    expect(await exists(join(dir, 'comma.checked.csv'))).toBe(false)
+    expect((await checkFile({ input: comma, delimiter: ',' })).rows).toBe(1)
+    expect((await checkFile({ input: comma })).rows).toBe(1)
+    expect((await checkFile({ input: tab, delimiter: '\t' })).rows).toBe(1)
+  })
+
+  it('a one-column file with no delimiter in its header is not mistaken for a wrong delimiter', async () => {
+    const input = join(dir, 'one.csv')
+    await writeFile(input, 'รหัสไปรษณีย์\n84280\n10300\n')
+    expect((await checkFile({ input })).rows).toBe(2)
+  })
+
   it('rejects an old .xls', async () => {
     const input = join(dir, 'old.xls')
     await writeFile(input, 'x')

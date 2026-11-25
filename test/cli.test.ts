@@ -128,6 +128,22 @@ describe('a run', () => {
   })
 })
 
+describe('--delimiter (tac-harden T5)', () => {
+  it('a wrong one exits 2 and names the likely one; "tab" and the real delimiter work', async () => {
+    const comma = join(dir, 'comma.csv')
+    await writeFile(comma, 'ชื่อ,ตำบล,รหัสไปรษณีย์\nสมชาย,เกาะพะงัน,84280\n')
+    const wrong = await run([comma, '--delimiter', ';', '--out', join(dir, 'o.csv')])
+    expect(wrong.code).toBe(2)
+    expect(wrong.err).toContain('the delimiter is probably ","')
+    expect(wrong.err).not.toContain('invalid')
+    const tab = join(dir, 'tab.csv')
+    await writeFile(tab, 'ชื่อ\tตำบล\tรหัสไปรษณีย์\nสมชาย\tเกาะพะงัน\t84280\n')
+    expect((await run([tab, '--delimiter', 'tab', '--quiet', '--out', join(dir, 'o2.csv')])).code).toBe(0)
+    expect((await run([tab, '--delimiter', '\\t', '--quiet', '--out', join(dir, 'o3.csv')])).code).toBe(0)
+    expect((await run([comma, '--delimiter', ',', '--quiet', '--out', join(dir, 'o4.csv')])).code).toBe(0)
+  })
+})
+
 describe('--fail-over and blank rows (tac-harden T4)', () => {
   it('rows made only of delimiters do not count as invalid and cannot trip --fail-over', async () => {
     const input = join(dir, 'blank.csv')

@@ -172,6 +172,17 @@ export async function checkFile(options: CheckFileOptions): Promise<FileSummary>
   const first = await iterator.next()
   if (first.done) throw new ColumnError('The file is empty')
 
+  // A first row that parsed into ONE cell but holds another delimiter means the delimiter is wrong
+  // (the CSV is comma-separated and --delimiter ';' was given): say so instead of checking nonsense.
+  const other = first.value.length === 1 ? [',', ';', '\t'].find((d) => d !== delimiter && (first.value[0] as string).includes(d)) : undefined
+  if (other !== undefined && encoding !== 'xlsx') {
+    const name = other === '\t' ? 'a tab' : `"${other}"`
+    throw new ColumnError(
+      `The first row has only one column but contains ${name}: the delimiter is probably ${name}, not ${delimiter === '\t' ? 'a tab' : `"${delimiter}"`}` +
+        `${options.delimiter === undefined ? '' : ' (as given by --delimiter)'}. Pass --delimiter ${other === '\t' ? 'tab' : `"${other}"`}.`,
+    )
+  }
+
   const hasHeader = options.header ?? true
   const entries = parseMapSpec(options.map ?? [])
   let map: ColumnMap

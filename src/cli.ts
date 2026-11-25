@@ -32,7 +32,7 @@ Options:
   --map <field=col>    name a column: province, district, subdistrict, postalCode = header or 1-based number
                        (repeatable, or comma separated); overrides detection
   --sheet <name|n>     XLSX sheet (default: the first)
-  --delimiter <c>      CSV delimiter (default: sniffed)
+  --delimiter <c>      CSV delimiter: one character, or the word tab (default: sniffed)
   --no-header          the file has no header row (use --map with numbers)
   --no-bom             do not start the output with a UTF-8 byte-order mark
   --quiet              no summary on screen
@@ -130,7 +130,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
       ...(values.out === undefined ? {} : { output: values.out }),
       ...(values.map === undefined ? {} : { map: values.map }),
       ...(values.sheet === undefined ? {} : { sheet: values.sheet }),
-      ...(values.delimiter === undefined ? {} : { delimiter: values.delimiter }),
+      ...(values.delimiter === undefined ? {} : { delimiter: values.delimiter === 'tab' || values.delimiter === '\\t' ? '\t' : values.delimiter }),
       ...(threshold === undefined ? {} : { autoCorrectThreshold: threshold }),
       autoCorrect: !values['no-fix'],
       header: !values['no-header'],
