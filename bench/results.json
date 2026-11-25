@@ -1,6 +1,6 @@
 {
   "meta": {
-    "package": "thai-address-check@0.0.0",
+    "package": "thai-address-check@0.1.1",
     "geothaiCore": "5.0.0",
     "dataVersion": "2026.10.23",
     "seed": 20261125,
@@ -178,60 +178,60 @@
     "platform": "darwin/arm64",
     "cpu": "Apple M1 Pro",
     "totalChecks": 5148,
-    "meanMsPerCheck": 8.074,
-    "cleanMeanMs": 0.062,
+    "meanMsPerCheck": 0.72,
+    "cleanMeanMs": 0.013,
     "perClass": {
       "formatting": {
-        "meanMs": 0.039,
-        "maxMs": 2.72
+        "meanMs": 0.025,
+        "maxMs": 2.28
       },
       "misspell:drop-tone-or-vowel": {
-        "meanMs": 2.292,
-        "maxMs": 149.83
+        "meanMs": 0.127,
+        "maxMs": 7.08
       },
       "misspell:confusable-letter": {
-        "meanMs": 0.62,
-        "maxMs": 53.3
+        "meanMs": 0.043,
+        "maxMs": 0.15
       },
       "misspell:transposition": {
-        "meanMs": 0.082,
-        "maxMs": 11.32
+        "meanMs": 0.042,
+        "maxMs": 0.14
       },
       "misspell:keyboard-neighbour": {
-        "meanMs": 0.39,
-        "maxMs": 44.12
+        "meanMs": 0.042,
+        "maxMs": 0.46
       },
       "misspell:delete-consonant": {
-        "meanMs": 1.155,
-        "maxMs": 91.75
+        "meanMs": 0.037,
+        "maxMs": 0.1
       },
       "misspell:alone": {
-        "meanMs": 132.487,
-        "maxMs": 718.46
+        "meanMs": 11.91,
+        "maxMs": 20.75
       },
       "wrong-postal-code": {
-        "meanMs": 0.509,
-        "maxMs": 103.47
+        "meanMs": 0.015,
+        "maxMs": 0.2
       },
       "wrong-parent": {
-        "meanMs": 0.093,
-        "maxMs": 6.84
+        "meanMs": 0.013,
+        "maxMs": 0.15
       },
       "old-name:notice-one-successor": {
-        "meanMs": 0.41,
-        "maxMs": 8.01
+        "meanMs": 0.028,
+        "maxMs": 0.37
       },
       "old-name:weak-evidence": {
-        "meanMs": 0.331,
-        "maxMs": 9.29
+        "meanMs": 0.015,
+        "maxMs": 0.07
       },
       "missing-field:one-answer": {
-        "meanMs": 0.064,
-        "maxMs": 5.81
+        "meanMs": 0.011,
+        "maxMs": 0.16
       },
       "missing-field:several-answers": {
-        "meanMs": 0.115,
-        "maxMs": 9
+        "meanMs": 0.008,
+        "maxMs": 0.13
       }
     }
   },

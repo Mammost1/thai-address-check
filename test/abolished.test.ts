@@ -162,3 +162,81 @@ describe('checkAbolished: supersedes validate findings on the explained field', 
     expect(ctx.findings.map((f) => f.code).sort()).toEqual(['ABOLISHED_AREA', 'POSTAL_CODE_INVALID'])
   })
 })
+
+describe('checkAbolished: the postal code is judged against the successors (tac-v011)', () => {
+  const BANG_NA = { province: 'กรุงเทพมหานคร', district: 'บางนา', subdistrict: 'บางนา' }
+  const codes = (r: { findings: Finding[] }) => r.findings.map((f) => f.code)
+  const mismatch = (r: { findings: Finding[] }) => r.findings.find((f) => f.code === 'POSTAL_CODE_MISMATCH')
+
+  it('บางนา / บางนา / กรุงเทพมหานคร / 10260: no false mismatch, ambiguous between the two successors', () => {
+    const r = check({ ...BANG_NA, postalCode: '10260' }) // 10260 is the code of บางนาเหนือ and บางนาใต้
+    expect(mismatch(r)).toBeUndefined()
+    expect(codes(r).filter((c) => c !== 'FORMAT_NORMALIZED')).toEqual(['ABOLISHED_AREA'])
+    expect(r.status).toBe('ambiguous')
+    expect(r.resolved).toBeUndefined()
+    expect(r.output.postalCode).toBe('10260') // nothing rewritten
+    expect(r.output.subdistrict).toBe('บางนา')
+  })
+
+  it('the same row written with เขต and กรุงเทพ gives the same result', () => {
+    const r = check({ province: 'กรุงเทพ', district: 'เขตบางนา', subdistrict: 'แขวงบางนา', postalCode: '10260' })
+    expect(mismatch(r)).toBeUndefined()
+    expect(r.status).toBe('ambiguous')
+  })
+
+  it('with no postal code it is still ambiguous (unchanged)', () => {
+    const r = check(BANG_NA)
+    expect(r.status).toBe('ambiguous')
+    expect(mismatch(r)).toBeUndefined()
+  })
+
+  it('a code that is in use but is not a successor\'s: mismatch, with the successors\' codes as expected', () => {
+    const r = check({ ...BANG_NA, postalCode: '10200' })
+    const f = mismatch(r)
+    expect(f?.severity).toBe('error')
+    expect(f?.fields).toEqual(['postalCode', 'subdistrict'])
+    expect(f?.detail).toMatchObject({ given: '10200', expected: ['10260'], against: { field: 'subdistrict', abolished: true } })
+    expect(f?.message.th).toContain('ใช้ 10260')
+    expect(f?.message.th).toContain('ที่มาแทน')
+    expect(r.status).toBe('invalid')
+    expect(codes(r)).toContain('ABOLISHED_AREA') // still explained
+  })
+
+  it('never offers a code from another province: Ayutthaya\'s บางนา (13150) is not a hint for เขตบางนา', () => {
+    for (const postalCode of ['10200', '13150']) {
+      const f = mismatch(check({ ...BANG_NA, postalCode }))
+      expect(f?.detail.expected, postalCode).toEqual(['10260'])
+      expect(f?.message.th.replace(`รหัสไปรษณีย์ ${postalCode}`, '')).not.toContain('13150')
+    }
+  })
+
+  it('a code that is not valid keeps its own finding and gets no mismatch on top', () => {
+    for (const postalCode of ['1026', '00000']) {
+      const r = check({ ...BANG_NA, postalCode })
+      expect(codes(r)).toContain('POSTAL_CODE_INVALID')
+      expect(mismatch(r)).toBeUndefined()
+    }
+  })
+
+  it('one successor with a gazette notice: its own code corrects, another in-use code is a mismatch', () => {
+    const row = { province: 'กรุงเทพมหานคร', district: 'เขตพระโขนง', subdistrict: 'พระโขนง' } // 100997, a single successor
+    const ok = check({ ...row, postalCode: '10110' })
+    expect(ok.status).toBe('corrected')
+    expect(mismatch(ok)).toBeUndefined()
+    const bad = check({ ...row, postalCode: '10200' })
+    expect(bad.status).toBe('invalid')
+    expect(mismatch(bad)?.detail.expected).toEqual(['10110', '10260'])
+  })
+
+  it('an abolished name with no successor has nothing to compare with: validate\'s finding stays, without a hint', () => {
+    const r = check({ province: 'กรุงเทพมหานคร', district: 'เขตบางเขน', subdistrict: 'บางเขน', postalCode: '10200' }) // 100599, no successor
+    expect(abolishedFindings(r)).toHaveLength(1)
+    expect(mismatch(r)).toBeDefined()
+    expect(mismatch(r)?.detail.expected).toBeUndefined()
+  })
+
+  it('a current subdistrict is unaffected: a wrong code is still judged against that subdistrict', () => {
+    const r = check({ province: 'สุราษฎร์ธานี', district: 'เกาะพะงัน', subdistrict: 'เกาะพะงัน', postalCode: '84360' })
+    expect(mismatch(r)?.detail.expected).toEqual(['84280'])
+  })
+})

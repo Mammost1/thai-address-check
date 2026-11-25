@@ -16,6 +16,7 @@ import {
   abolishedByName,
   districtByCode,
   districtsByName,
+  isPostalCodeInUse,
   provincesByName,
   resolvedByCode,
   resolvedOf,
@@ -23,6 +24,7 @@ import {
   subdistrictsOf,
   type Abolished,
 } from './data'
+import { LABEL_TH } from './labels'
 import type { CheckContext, Field, Finding, ResolvedAddress, Suggestion } from './types'
 
 type Basis = Abolished['successors_basis']
@@ -81,6 +83,41 @@ function areaDetail(a: Abolished): Record<string, unknown> {
 function successorLabel(h: Hit): string {
   if (h.field === 'district') return h.districts.map((d) => d.th).join(', ')
   return h.addrs.map((a) => `${a.subdistrict.th} (${a.district.th} ${a.province.th})`).join(', ')
+}
+
+/**
+ * The postal code of a row whose subdistrict resolves ONLY as an abolished name is judged against
+ * the codes of its successors (those that stand for the areas matched under the given parents), not
+ * against a same-name subdistrict somewhere else: people still write แขวงบางนา 10260 and 10260 is the
+ * code of both successors. `validate` cannot know this, so any POSTAL_CODE_MISMATCH it raised for the
+ * subdistrict is replaced here: no finding when a successor uses the code, otherwise one that names the
+ * successors' codes as the expected ones (never a code from another province). A code that is not
+ * 5 digits or not in use anywhere keeps its POSTAL_CODE_INVALID finding, and with no successor there
+ * is nothing to compare with, so validate's finding stays.
+ */
+function judgePostalBySuccessors(ctx: CheckContext, addrs: readonly ResolvedAddress[], given: string): void {
+  const postal = ctx.output.postalCode
+  if (addrs.length === 0 || !postal || !/^\d{5}$/.test(postal) || !isPostalCodeInUse(postal)) return
+  ctx.findings = ctx.findings.filter((f) => !(f.code === 'POSTAL_CODE_MISMATCH' && f.fields.includes('subdistrict')))
+  if (addrs.some((a) => a.postalCodes.includes(postal))) return
+  const expected = unique(addrs.flatMap((a) => a.postalCodes)).sort()
+  const shown = expected.slice(0, 30)
+  const list = expected.length > shown.length ? `เช่น ${shown.join(', ')}` : `ใช้ ${shown.join(', ')}`
+  ctx.findings.push({
+    code: 'POSTAL_CODE_MISMATCH',
+    severity: 'error',
+    fields: ['postalCode', 'subdistrict'],
+    message: {
+      th: `${LABEL_TH.postalCode} ${postal} ไม่ตรงกับ${LABEL_TH.subdistrict}ที่มาแทน "${given}" (${list})`,
+      en: `Postal code ${postal} does not belong to the areas that replaced "${given}" (they use ${shown.join(', ')}${expected.length > shown.length ? ', …' : ''}).`,
+    },
+    detail: {
+      given: postal,
+      against: { field: 'subdistrict', value: given, abolished: true },
+      expected: shown,
+      expectedTotal: expected.length,
+    },
+  })
 }
 
 /**
@@ -155,6 +192,7 @@ export function checkAbolished(ctx: CheckContext): void {
   )
 
   const main = hits.find((h) => h.addrs.length > 0 || h.districts.length > 0) ?? hits[0]!
+  if (main.field === 'subdistrict' && subdistrict) judgePostalBySuccessors(ctx, main.addrs, subdistrict)
   const basis = effectiveBasis(main.areas)
   const addrs = main.addrs
   const postalOk = (a: ResolvedAddress): boolean => !postalCode || a.postalCodes.includes(postalCode)
