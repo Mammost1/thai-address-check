@@ -49,8 +49,11 @@ check({ subdistrict: 'ศรีภูมิ', postalCode: '50200' })
 (ตรวจทีละแถวเมื่อวนอ่าน ไม่มี `.length`) ถ้าต้องการ array ใช้ `[...checkMany(rows)]`
 
 อำเภอที่เขียนว่า `เมือง`, `อ.เมือง`, `Mueang` หรือ `Muang` หมายถึงอำเภอเมืองของจังหวัดที่ระบุ (เช่น เชียงใหม่ + `อ.เมือง` = `เมืองเชียงใหม่`)
-ผลเป็น `valid` พร้อม `FORMAT_NORMALIZED` กฎ `mueang-province` ถ้าไม่ระบุจังหวัดจะใช้ตำบลและรหัสไปรษณีย์ช่วยหาเมื่อเหลือที่เดียว
+ผลเป็น `valid` พร้อม `FORMAT_NORMALIZED` กฎ `mueang-province` ชื่ออำเภอที่ได้เป็นภาษาเดียวกับที่เขียนในช่องอำเภอ (`เมือง` ได้ชื่อไทย, `Mueang` ได้ชื่ออังกฤษ แม้จังหวัดเขียนเป็นไทย) ถ้าไม่ระบุจังหวัดจะใช้ตำบลและรหัสไปรษณีย์ช่วยหาเมื่อเหลือที่เดียว
 กรุงเทพฯ และพระนครศรีอยุธยาไม่มีอำเภอชื่อ "เมือง..." จึงไม่ขยายให้ เขตของกรุงเทพฯ เขียนได้ทั้ง `เขตพระนคร` และ `พระนคร`
+
+รหัสไปรษณีย์อ่านได้เมื่อเป็นตัวเลข 5 หลัก (เลขไทยได้) คั่นด้วยช่องว่าง ขีด หรือจุลภาคหลักพัน (`50 200`, `50-200`, `50,200`) หรือมีทศนิยมศูนย์จากตารางคำนวณ (`50200.0`)
+ค่าอื่นที่มีตัวอักษรหรือจุด (`5020.0`, `50200abc`, `TH-50200`, `ปณ.50200`) ได้ `POSTAL_CODE_INVALID` พร้อมค่าที่เขียนมา ไม่มีการเลือกเฉพาะตัวเลขออกมาใช้
 
 ## ตัวอย่างที่ 3: ตรวจทั้งไฟล์ CSV/Excel
 
@@ -324,9 +327,12 @@ Options of `check(input, options)`: `autoCorrectThreshold` (default 0.9), `autoC
 `maxSuggestions` (default 3). Use `checkMany(rows)` for large inputs: it returns a generator (each row is checked as you
 iterate; it has no `.length`), so use `[...checkMany(rows)]` when you need an array.
 A district written `เมือง`, `อ.เมือง`, `Mueang` or `Muang` means the capital district of the given province (เชียงใหม่ + `อ.เมือง` =
-`เมืองเชียงใหม่`): `valid` with `FORMAT_NORMALIZED`, rule `mueang-province`. Without a province, the subdistrict and postal code decide when
+`เมืองเชียงใหม่`): `valid` with `FORMAT_NORMALIZED`, rule `mueang-province`. The full name is in the language of the district field as written (`เมือง` gives the Thai name, `Mueang` the English one, even under a Thai province). Without a province, the subdistrict and postal code decide when
 exactly one place fits. Bangkok and Phra Nakhon Si Ayutthaya have no "เมือง…" district, so it is not expanded there. Bangkok districts are
 accepted both as `เขตพระนคร` and `พระนคร`.
+A postal code is read when it is 5 digits (Thai digits too), optionally separated by spaces, hyphens or a thousands comma (`50 200`, `50-200`,
+`50,200`), or with a spreadsheet's zero decimal (`50200.0`). Anything else with a letter or a dot (`5020.0`, `50200abc`, `TH-50200`, `ปณ.50200`)
+is `POSTAL_CODE_INVALID`, quoted as written: digits are never picked out of it.
 
 ### Example 3: check a whole CSV/Excel file
 

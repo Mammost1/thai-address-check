@@ -3,6 +3,18 @@
 All notable changes to `thai-address-check`. Versions follow [semver](https://semver.org/).
 บันทึกการเปลี่ยนแปลงของ `thai-address-check` (ไทยก่อน อังกฤษตามหลัง)
 
+## 0.2.1 — 2026-11-26
+
+### Fixed / แก้ไข
+
+- **A postal code could be made valid by dropping characters (F18).** Every non-digit was deleted, so `5020.0` (the number 5020),
+  `50.200`, `50200abc`, `TH-50200` and `(50200)` were all read as a valid 50200. Now only spaces, hyphens and a thousands comma are
+  removed (and a spreadsheet's zero decimal, as in 0.2.0); any other value is `POSTAL_CODE_INVALID`, quoted as written. **Behaviour
+  change:** a code with a label around it (`TH-50200`, `ปณ.50200`, `รหัส 50200`) is now invalid; write the 5 digits alone.
+- `check()` no longer edits the object `normalize()` returned when it writes a bare `เมือง` in full: `result.normalized` is a new object,
+  and its documentation says it can differ from `normalize(input)` (review 357ddaed).
+- README: the expanded `เมือง` district follows the language of the district field as written; the accepted postal code forms are listed.
+
 ## 0.2.0 — 2026-11-25
 
 Seed your own table from the same data the checker uses, and know which data you run.

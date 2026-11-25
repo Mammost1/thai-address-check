@@ -133,13 +133,15 @@ function place(a: ResolvedAddress): string {
 }
 
 /**
- * The unanchored case when the abolished homonym has NO successor in the data (150 of the 151 names
- * in data 2026.10.23, e.g. Bangkok's บางเขน 100599; ruling e1ccb0e5). Nothing is filled and the
- * result is invalid, since there is no list to choose from:
- *   (b') the postal code is used in the abolished area's former district: say so, no mismatch
- *        against the current homonym;
- *   (c') no postal code: ask for the province or district;
- *   (d') a postal code used by neither: the mismatch lists the current homonym's codes.
+ * The unanchored case (no province, no district) when the abolished homonym that raises the doubt has NO
+ * successor in the data (e.g. Bangkok's บางเขน 100599; rulings be3822a3 and Mos on 99481561, rule A).
+ * Nothing is filled:
+ *   (c') no postal code: status ambiguous (ABOLISHED_AREA warning + AMBIGUOUS naming the current place and
+ *        the old area; the current homonym stays the one candidate and is suggested at 0.5);
+ *   (b') the postal code is used in the abolished area's former district: invalid, ABOLISHED_AREA says so,
+ *        no mismatch against the current homonym;
+ *   (d') a postal code used by neither: invalid, the mismatch lists the current homonym's codes.
+ * (A postal code the current homonym uses never reaches here: case (a) keeps today's fill.)
  */
 function noSuccessor(ctx: CheckContext, name: string, areas: Abolished[], currentAddrs: ResolvedAddress[], postal: string | undefined): void {
   const first = areas[0]!
