@@ -126,12 +126,19 @@ function bangkokAlias(s: Step): Step {
   return s
 }
 
+/** Digits with spaces or hyphens between them, or a thousands comma: '50 200', '50-200', '50,200'. */
+const POSTAL_SEPARATORS_ONLY = /^(?:\d[\d \-]*\d|\d|\d{1,3}(?:,\d{3})+)$/
+
 function normalizeField(field: Field, raw: string): Step {
   let s = cleanCharacters({ value: raw, rules: [] })
   if (field === 'postalCode') {
     // A spreadsheet that stored the code as a number writes it back as '50200.0'. Deleting the dot
     // alone would make '502000', a code nobody wrote (tac-night F13), so a zero decimal goes first.
-    s = step(s, 'postal-decimal-zero', s.value.replace(/^(\d{5})\.0+$/, '$1'))
+    s = step(s, 'postal-decimal-zero', s.value.replace(/^(\d{5})\.0*$/, '$1'))
+    // Only separators that cannot change which number was written are removed: spaces, hyphens, and a
+    // thousands comma ('50,200'). Anything else ('5020.0', '50200abc', 'ปณ.50200', '(50200)') is kept as
+    // written, so the format check rejects it instead of a digit-picking step accepting it (tac-night-2 F18).
+    if (!POSTAL_SEPARATORS_ONLY.test(s.value)) return s
     return step(s, 'postal-digits-only', s.value.replace(/\D/g, ''))
   }
   s = stripPrefix(field, s)

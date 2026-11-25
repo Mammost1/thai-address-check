@@ -48,8 +48,24 @@ describe('normalize', () => {
     expect(normalize({ postalCode: '50200.0' })).toMatchObject({ postalCode: '50200', applied: { postalCode: ['postal-decimal-zero'] } })
     expect(normalize({ postalCode: '50200.00' }).postalCode).toBe('50200')
     expect(normalize({ postalCode: '๕๐๒๐๐.๐' }).postalCode).toBe('50200')
-    expect(normalize({ postalCode: '50200.5' }).postalCode).toBe('502005') // not a zero decimal: left to the format check
-    expect(normalize({ postalCode: '5020.0' }).postalCode).toBe('50200'.slice(0, 4) + '0') // only 5-digit codes are read as numbers
+    expect(normalize({ postalCode: '50200.' }).postalCode).toBe('50200')
+    expect(normalize({ postalCode: '50200.5' }).postalCode).toBe('50200.5') // not a zero decimal: kept for the format check
+  })
+
+  // tac-night-2 F18: deleting every non-digit turned '5020.0' (the number 5020) into a valid 50200.
+  it.each([
+    ['5020.0'], ['50.200'], ['502.00'], ['50200abc'], ['abc50200'], ['ปณ.50200'], ['TH-50200'],
+    ['(50200)'], ['+50200'], ['50/200'], ['50_200'], ['50200.0.0'], ['1.0e4'],
+  ])('keeps %j as written: no digit is picked out of it', (given) => {
+    const r = normalize({ postalCode: given })
+    expect(r.postalCode).toBe(given)
+    expect(r.applied.postalCode ?? []).not.toContain('postal-digits-only')
+  })
+
+  it.each([
+    ['50 200', '50200'], ['5 0 2 0 0', '50200'], ['50-200', '50200'], ['50,200', '50200'], ['๕๐ ๒๐๐', '50200'],
+  ])('a separator that cannot change the number is removed: %j -> %j', (given, expected) => {
+    expect(normalize({ postalCode: given }).postalCode).toBe(expected)
   })
 
   it('keeps only the digits of a postal code', () => {
