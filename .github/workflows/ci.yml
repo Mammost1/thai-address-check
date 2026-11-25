@@ -1,0 +1,73 @@
+# CI: every push and pull request. The same four commands a contributor runs locally,
+# plus a tiny benchmark run and a command-line smoke test against the built package.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  library:
+    name: library (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # package.json declares engines.node >=22.12; test the floor and the current 22.x line.
+        node: ['22.12', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Benchmark smoke (small sample; proves the harness still runs)
+        # Full numbers come from `npm run bench`; this only checks that the build can be benchmarked.
+        run: BENCH_N=20 BENCH_CLEAN=100 node bench/run.mjs
+      - name: Command-line smoke test
+        run: |
+          printf 'จังหวัด,อำเภอ,ตำบล,รหัสไปรษณีย์\nเชียงใหม่,เมืองเชียงใหม่,ศรีภูมิ,50200\nเชียงใหม่,เมืองเชียงใหม่,ศรีภูมิ,10110\n' > "$RUNNER_TEMP/smoke.csv"
+          # Row 2 has a wrong postal code, so half the rows are invalid: --fail-over 10 must exit 1.
+          set +e
+          node dist/cli.js "$RUNNER_TEMP/smoke.csv" --fail-over 10 --report "$RUNNER_TEMP/smoke.json"
+          code=$?
+          set -e
+          test "$code" -eq 1
+          test -s "$RUNNER_TEMP/smoke.checked.csv"
+          node -e "const r=JSON.parse(require('fs').readFileSync(process.env.RUNNER_TEMP+'/smoke.json','utf8'));if(r.rows!==2)process.exit(3)"
+
+  web:
+    name: web playground
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+      - run: npm ci
+      - run: npm --prefix web ci
+      - name: Test
+        run: npm --prefix web test
+      - name: Build
+        run: npm --prefix web run build

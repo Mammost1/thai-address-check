@@ -1,0 +1,318 @@
+{
+  "meta": {
+    "package": "thai-address-check@0.0.0",
+    "geothaiCore": "5.0.0",
+    "dataVersion": "2026.10.23",
+    "seed": 20261125,
+    "rowsPerClass": 300,
+    "cleanRows": 1500,
+    "digest": "f8899e6d281debc6",
+    "command": "npm run bench"
+  },
+  "deterministic": {
+    "seed": 20261125,
+    "rowsPerClass": 300,
+    "cleanRows": 1500,
+    "dataVersion": "2026.10.23",
+    "classes": [
+      {
+        "id": "formatting",
+        "n": 300,
+        "detected": 300,
+        "correct": 300,
+        "wrong": 0,
+        "unfixed": 0,
+        "statuses": {
+          "valid": 300
+        }
+      },
+      {
+        "id": "misspell:drop-tone-or-vowel",
+        "n": 300,
+        "detected": 300,
+        "correct": 157,
+        "wrong": 0,
+        "unfixed": 143,
+        "statuses": {
+          "corrected": 157,
+          "invalid": 143
+        }
+      },
+      {
+        "id": "misspell:confusable-letter",
+        "n": 300,
+        "detected": 300,
+        "correct": 299,
+        "wrong": 0,
+        "unfixed": 1,
+        "statuses": {
+          "corrected": 299,
+          "invalid": 1
+        }
+      },
+      {
+        "id": "misspell:transposition",
+        "n": 300,
+        "detected": 300,
+        "correct": 281,
+        "wrong": 0,
+        "unfixed": 19,
+        "statuses": {
+          "invalid": 19,
+          "corrected": 281
+        }
+      },
+      {
+        "id": "misspell:keyboard-neighbour",
+        "n": 300,
+        "detected": 300,
+        "correct": 263,
+        "wrong": 0,
+        "unfixed": 37,
+        "statuses": {
+          "corrected": 263,
+          "invalid": 37
+        }
+      },
+      {
+        "id": "misspell:delete-consonant",
+        "n": 300,
+        "detected": 300,
+        "correct": 61,
+        "wrong": 0,
+        "unfixed": 239,
+        "statuses": {
+          "invalid": 239,
+          "corrected": 61
+        }
+      },
+      {
+        "id": "misspell:alone",
+        "n": 300,
+        "detected": 300,
+        "correct": 0,
+        "wrong": 0,
+        "unfixed": 300,
+        "statuses": {
+          "invalid": 300
+        }
+      },
+      {
+        "id": "wrong-postal-code",
+        "n": 300,
+        "detected": 300,
+        "correct": 0,
+        "wrong": 0,
+        "unfixed": 300,
+        "statuses": {
+          "invalid": 300
+        }
+      },
+      {
+        "id": "wrong-parent",
+        "n": 300,
+        "detected": 300,
+        "correct": 0,
+        "wrong": 0,
+        "unfixed": 300,
+        "statuses": {
+          "invalid": 300
+        }
+      },
+      {
+        "id": "old-name:notice-one-successor",
+        "n": 48,
+        "detected": 48,
+        "correct": 48,
+        "wrong": 0,
+        "unfixed": 0,
+        "statuses": {
+          "corrected": 48
+        }
+      },
+      {
+        "id": "old-name:weak-evidence",
+        "n": 300,
+        "detected": 300,
+        "correct": 0,
+        "wrong": 0,
+        "unfixed": 300,
+        "statuses": {
+          "invalid": 300
+        }
+      },
+      {
+        "id": "missing-field:one-answer",
+        "n": 300,
+        "detected": 300,
+        "correct": 300,
+        "wrong": 0,
+        "unfixed": 0,
+        "statuses": {
+          "corrected": 298,
+          "valid": 2
+        }
+      },
+      {
+        "id": "missing-field:several-answers",
+        "n": 300,
+        "detected": 300,
+        "correct": 0,
+        "wrong": 0,
+        "unfixed": 300,
+        "statuses": {
+          "ambiguous": 300
+        }
+      }
+    ],
+    "clean": {
+      "n": 1500,
+      "falseAlarms": 0,
+      "wrongResolution": 0,
+      "cosmetic": 43
+    }
+  },
+  "timing": {
+    "note": "machine dependent; every other number is reproducible and covered by meta.digest",
+    "node": "v24.21.0",
+    "platform": "darwin/arm64",
+    "cpu": "Apple M1 Pro",
+    "totalChecks": 5148,
+    "meanMsPerCheck": 8.074,
+    "cleanMeanMs": 0.062,
+    "perClass": {
+      "formatting": {
+        "meanMs": 0.039,
+        "maxMs": 2.72
+      },
+      "misspell:drop-tone-or-vowel": {
+        "meanMs": 2.292,
+        "maxMs": 149.83
+      },
+      "misspell:confusable-letter": {
+        "meanMs": 0.62,
+        "maxMs": 53.3
+      },
+      "misspell:transposition": {
+        "meanMs": 0.082,
+        "maxMs": 11.32
+      },
+      "misspell:keyboard-neighbour": {
+        "meanMs": 0.39,
+        "maxMs": 44.12
+      },
+      "misspell:delete-consonant": {
+        "meanMs": 1.155,
+        "maxMs": 91.75
+      },
+      "misspell:alone": {
+        "meanMs": 132.487,
+        "maxMs": 718.46
+      },
+      "wrong-postal-code": {
+        "meanMs": 0.509,
+        "maxMs": 103.47
+      },
+      "wrong-parent": {
+        "meanMs": 0.093,
+        "maxMs": 6.84
+      },
+      "old-name:notice-one-successor": {
+        "meanMs": 0.41,
+        "maxMs": 8.01
+      },
+      "old-name:weak-evidence": {
+        "meanMs": 0.331,
+        "maxMs": 9.29
+      },
+      "missing-field:one-answer": {
+        "meanMs": 0.064,
+        "maxMs": 5.81
+      },
+      "missing-field:several-answers": {
+        "meanMs": 0.115,
+        "maxMs": 9
+      }
+    }
+  },
+  "percentages": {
+    "formatting": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 100,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 0
+    },
+    "misspell:drop-tone-or-vowel": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 52.3,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 47.7
+    },
+    "misspell:confusable-letter": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 99.7,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 0.3
+    },
+    "misspell:transposition": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 93.7,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 6.3
+    },
+    "misspell:keyboard-neighbour": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 87.7,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 12.3
+    },
+    "misspell:delete-consonant": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 20.3,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 79.7
+    },
+    "misspell:alone": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 0,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 100
+    },
+    "wrong-postal-code": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 0,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 100
+    },
+    "wrong-parent": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 0,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 100
+    },
+    "old-name:notice-one-successor": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 100,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 0
+    },
+    "old-name:weak-evidence": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 0,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 100
+    },
+    "missing-field:one-answer": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 100,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 0
+    },
+    "missing-field:several-answers": {
+      "detectedPct": 100,
+      "correctlyFixedPct": 0,
+      "wronglyFixedPct": 0,
+      "reportedOnlyPct": 100
+    }
+  }
+}

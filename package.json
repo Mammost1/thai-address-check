@@ -1,0 +1,58 @@
+{
+  "name": "thai-address-check",
+  "version": "0.0.0",
+  "description": "Check Thai addresses field by field: find what is wrong, explain it, and fix it only when the evidence is strong.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "thai-address-check": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsup",
+    "bench": "npm run build && node bench/run.mjs"
+  },
+  "keywords": [
+    "thai",
+    "address",
+    "validation",
+    "postal-code",
+    "thailand"
+  ],
+  "dependencies": {
+    "@geothai/core": "5.0.0",
+    "csv-parse": "7.0.3",
+    "read-excel-file": "9.3.14"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "tsup": "8.5.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mammost1/thai-address-check.git"
+  },
+  "homepage": "https://github.com/Mammost1/thai-address-check#readme",
+  "bugs": {
+    "url": "https://github.com/Mammost1/thai-address-check/issues"
+  }
+}

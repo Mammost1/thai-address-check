@@ -1,0 +1,116 @@
+# Weekly: has GeoThai published newer data? If so, install it WITHOUT touching package.json,
+# re-run the tests and the full benchmark, and open an issue showing what changed.
+# Nothing is committed or pushed by this workflow; the maintainer decides what to do with the issue.
+name: Weekly data check
+
+on:
+  schedule:
+    - cron: '17 3 * * 1' # Mondays 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Compare installed and latest @geothai/core
+        id: versions
+        run: |
+          installed=$(node -p "JSON.parse(require('fs').readFileSync('node_modules/@geothai/core/package.json','utf8')).version")
+          latest=$(npm view @geothai/core version)
+          echo "installed=$installed" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          if [ "$installed" = "$latest" ]; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+          echo "installed=$installed latest=$latest"
+
+      - name: Install the newer package (not saved)
+        if: steps.versions.outputs.changed == 'true'
+        run: npm install --no-save "@geothai/core@${{ steps.versions.outputs.latest }}"
+
+      - name: Typecheck, test, build
+        id: gates
+        if: steps.versions.outputs.changed == 'true'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          { npm run typecheck && npm test && npm run build; } 2>&1 | tail -n 60 | tee "$RUNNER_TEMP/gates.log"
+
+      - name: Re-run the full benchmark
+        id: bench
+        if: steps.versions.outputs.changed == 'true'
+        continue-on-error: true
+        run: npm run bench
+
+      - name: Compare benchmark with the committed results
+        if: steps.versions.outputs.changed == 'true'
+        run: |
+          git show HEAD:bench/results.json > "$RUNNER_TEMP/old.json"
+          node --input-type=module -e '
+            import { readFileSync, writeFileSync } from "node:fs"
+            const oldR = JSON.parse(readFileSync(process.env.RUNNER_TEMP + "/old.json", "utf8"))
+            const newR = JSON.parse(readFileSync("bench/results.json", "utf8"))
+            const out = []
+            out.push(`data version: ${oldR.meta.dataVersion} -> ${newR.meta.dataVersion}`)
+            out.push(`@geothai/core: ${oldR.meta.geothaiCore} -> ${newR.meta.geothaiCore}`)
+            out.push(`same seed and sample size: ${oldR.meta.seed === newR.meta.seed && oldR.meta.rowsPerClass === newR.meta.rowsPerClass && oldR.meta.cleanRows === newR.meta.cleanRows}`)
+            const oldC = Object.fromEntries(oldR.deterministic.classes.map((c) => [c.id, c]))
+            for (const c of newR.deterministic.classes) {
+              const o = oldC[c.id]
+              if (!o) { out.push(`+ ${c.id}: new class`); continue }
+              const d = ["detected", "correct", "wrong", "unfixed"].filter((k) => o[k] !== c[k]).map((k) => `${k} ${o[k]} -> ${c[k]}`)
+              if (d.length) out.push(`~ ${c.id}: ${d.join(", ")}`)
+            }
+            const oc = oldR.deterministic.clean, nc = newR.deterministic.clean
+            const dc = ["falseAlarms", "wrongResolution", "cosmetic"].filter((k) => oc[k] !== nc[k]).map((k) => `${k} ${oc[k]} -> ${nc[k]}`)
+            if (dc.length) out.push(`~ clean set: ${dc.join(", ")}`)
+            if (out.length === 3) out.push("no per-class count changed")
+            writeFileSync(process.env.RUNNER_TEMP + "/bench-diff.txt", out.join("\n") + "\n")
+          '
+          cat "$RUNNER_TEMP/bench-diff.txt"
+
+      - name: Open an issue
+        if: steps.versions.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.versions.outputs.latest }}
+          INSTALLED: ${{ steps.versions.outputs.installed }}
+          GATES: ${{ steps.gates.outcome }}
+          BENCH: ${{ steps.bench.outcome }}
+        run: |
+          title="@geothai/core $LATEST is available (pinned: $INSTALLED)"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq 'length')
+          if [ "$existing" != "0" ]; then echo "An issue for this version is already open."; exit 0; fi
+          {
+            echo "The weekly check found a newer \`@geothai/core\`."
+            echo
+            echo "- pinned in package.json: \`$INSTALLED\`"
+            echo "- latest on npm: \`$LATEST\`"
+            echo "- typecheck + test + build with the newer package: **$GATES**"
+            echo "- full benchmark with the newer package: **$BENCH**"
+            echo
+            echo "### Benchmark: committed results versus the newer data"
+            echo '```'
+            cat "$RUNNER_TEMP/bench-diff.txt"
+            echo '```'
+            if [ "$GATES" != "success" ]; then
+              echo
+              echo "### Last lines of the failing gate"
+              echo '```'
+              cat "$RUNNER_TEMP/gates.log"
+              echo '```'
+            fi
+            echo
+            echo "Nothing was changed in the repository. To adopt it: bump the pin in package.json, run \`npm install\`, \`npm test\`, \`npm run bench\`, and update the README table with \`node docs/bench-table.mjs\`."
+          } > "$RUNNER_TEMP/issue.md"
+          gh issue create --title "$title" --body-file "$RUNNER_TEMP/issue.md"
