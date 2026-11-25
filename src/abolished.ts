@@ -171,9 +171,11 @@ function noSuccessor(ctx: CheckContext, name: string, areas: Abolished[], curren
     inFormer.length > 0
       ? `Postal code ${postal} is used in ${formerLabel}, where it was, so this is not taken as ${homonyms}.`
       : `With no province or district, it is not assumed to be ${homonyms}.`
+  // (c') no postal code: ambiguous between the current homonym and the old area; (b') / (d'): invalid.
+  const open = postal === undefined
   ctx.findings.push({
     code: 'ABOLISHED_AREA',
-    severity: 'error',
+    severity: open ? 'warning' : 'error',
     fields: ['subdistrict'],
     message: {
       th: `"${name}" เป็นชื่อของพื้นที่ที่ถูกยุบใน ${where} ด้วย (เมื่อ ${first.abolished_on}) และข้อมูลไม่ระบุพื้นที่ที่มาแทน ${reasonTh} ให้ระบุ${LABEL_TH.province}หรือ${LABEL_TH.district}`,
@@ -191,7 +193,25 @@ function noSuccessor(ctx: CheckContext, name: string, areas: Abolished[], curren
       applied: false,
     },
   })
-  ctx.candidates = []
+  if (open) {
+    const options = [
+      ...currentAddrs.map((a) => ({ province: a.province.th, district: a.district.th, subdistrict: a.subdistrict.th, postalCodes: a.postalCodes })),
+      ...areas.map((a) => ({ province: provinceByCode(a.code.slice(0, 2))?.name_th ?? '', subdistrict: a.name_th, abolished: a.code, abolishedOn: a.abolished_on })),
+    ]
+    ctx.findings.push({
+      code: 'AMBIGUOUS',
+      severity: 'error',
+      fields: ['province', 'district'],
+      message: {
+        th: `"${name}" อาจหมายถึง ${homonyms} หรือพื้นที่เดิมใน ${where} ที่ถูกยุบแล้ว ต้องระบุเพิ่ม: ${LABEL_TH.province}, ${LABEL_TH.district}`,
+        en: `"${name}" may mean ${homonyms} or the abolished area in ${where}; add: province, district.`,
+      },
+      detail: { count: options.length, needs: ['province', 'district'], options: options.slice(0, 10), optionsTotal: options.length },
+    })
+  }
+  // The current homonym stays a candidate when nothing rules it out; check() reports 'ambiguous'
+  // because of the AMBIGUOUS finding, and never 'valid' with it filled.
+  ctx.candidates = open ? [...currentAddrs] : []
   // Suggestions only: the current homonym, and the former district when the postal code points there.
   const pool = [...currentAddrs, ...unique(inFormer.map((a) => a.districtCode)).map((c) => inFormer.find((a) => a.districtCode === c)!)]
   const perField = new Map<Field, number>()
@@ -228,12 +248,13 @@ function checkUnanchoredHomonym(ctx: CheckContext): boolean {
   if (current.length === 0) return false // current nowhere: the anchored path below explains it
   const currentDistricts = new Set(current.map((x) => x.district_code))
   const currentCodes = new Set(current.map((x) => x.code))
-  const areas = abolishedByName(name, 'subdistrict').filter((a) => a.parent_code === null || !currentDistricts.has(a.parent_code))
-  // When ANY record's successor IS a current homonym (บึงกาฬ: the old Nong Khai record points to today's
-  // Bueng Kan one), the data itself links the old name to the current place: the fill stays. Old records
-  // with no successor are often the same place before a province split, which the data cannot show, so
-  // that link is taken as settling the name (ruling e1ccb0e5, rule B).
-  if (areas.some((a) => a.successors.some((c) => currentCodes.has(c)))) return false
+  // Rule A (Mos, amending be3822a3): a record whose successor IS a current homonym is the same place
+  // re-registered (บึงกาฬ: old Nong Khai record -> today's Bueng Kan one) and raises no doubt. Any OTHER
+  // record (pointing elsewhere, or nowhere) is a place the bare name may mean, so the fill is withheld;
+  // a link on one record says nothing about an unlinked one (ส้มผ่อ: Phatthalung 930598 vs Yasothon).
+  const areas = abolishedByName(name, 'subdistrict').filter(
+    (a) => (a.parent_code === null || !currentDistricts.has(a.parent_code)) && !a.successors.some((c) => currentCodes.has(c)),
+  )
   const successors = unique(areas.flatMap((a) => a.successors))
     .filter((code) => !currentCodes.has(code))
     .map((code) => resolvedByCode(code))

@@ -63,13 +63,15 @@ function sameFields(a: AddressInput, b: AddressInput): boolean {
 
 /**
  * Status rules (docs/TASKS.md): an error finding other than AMBIGUOUS makes the address invalid;
- * several candidates make it ambiguous; exactly one candidate makes it valid, or corrected when
+ * several candidates, or an AMBIGUOUS finding, make it ambiguous; exactly one candidate makes it valid, or corrected when
  * `output` differs from the normalized fields (a correction or a filled field was applied).
  */
 function statusOf(ctx: CheckContext): Status {
   const blocking = ctx.findings.some((f) => f.severity === 'error' && f.code !== 'AMBIGUOUS')
   if (blocking) return 'invalid'
-  if (ctx.candidates.length > 1) return 'ambiguous'
+  // An AMBIGUOUS finding also stands for a choice the candidate list cannot show (a bare name that may
+  // mean a current place or an abolished one with no successor: tac-night F10, rule A).
+  if (ctx.candidates.length > 1 || ctx.findings.some((f) => f.code === 'AMBIGUOUS')) return 'ambiguous'
   if (ctx.candidates.length === 1) return sameFields(ctx.output, fieldsOf(ctx.normalized)) ? 'valid' : 'corrected'
   return 'invalid'
 }

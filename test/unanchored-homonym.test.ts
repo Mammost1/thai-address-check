@@ -9,9 +9,9 @@ import { abolishedByName, allSubdistricts, subdistrictsByName } from '../src/dat
 
 const { names } = JSON.parse(readFileSync(new URL('./fixtures/abolished-homonyms.json', import.meta.url), 'utf8')) as { names: string[] }
 /**
- * Rule B (ruling e1ccb0e5): withheld when the name has abolished records outside the current homonyms'
- * districts and NONE of them names a current homonym as its successor. Computed from the data here,
- * independently of abolished.ts, so the test states the rule rather than echoing the implementation.
+ * Rule A (Mos, ruling on escalation 99481561): withheld when ANY abolished record of the name, outside the
+ * current homonyms' districts, does not name a current homonym as its successor. Computed from the data
+ * here, independently of abolished.ts, so the test states the rule rather than echoing the implementation.
  */
 function withheld(name: string): boolean {
   const cur = subdistrictsByName(name)
@@ -19,31 +19,33 @@ function withheld(name: string): boolean {
   const codes = new Set(cur.map((s) => s.code))
   const districts = new Set(cur.map((s) => s.district_code))
   const recs = abolishedByName(name, 'subdistrict').filter((a) => a.parent_code === null || !districts.has(a.parent_code))
-  return recs.length > 0 && !recs.some((a) => a.successors.some((c) => codes.has(c)))
+  return recs.some((a) => !a.successors.some((c) => codes.has(c)))
 }
 const W = names.filter(withheld)
 const linked = names.filter((n) => !withheld(n))
 const abolishedFlag = (r: ReturnType<typeof check>): boolean => r.findings.some((f) => f.code === 'ABOLISHED_AREA' && f.detail.unanchored === true)
 
 describe('bare abolished homonym, no parent field (F10)', () => {
-  it('the tester set: 151 names, 93 with no record linking them to the current place, 58 linked (data 2026.10.23)', () => {
+  it('the tester set: 151 names, 123 withheld by rule A, 28 same-place re-registrations (data 2026.10.23)', () => {
     expect(names.length).toBe(151)
-    expect(W.length).toBe(93)
+    expect(W.length).toBe(123)
+    expect(W).toContain('ส้มผ่อ') // Phatthalung 930598 has no link to the Yasothon place, although 350804 does
     expect(linked).toContain('บึงกาฬ')
   })
 
-  it('name only: none of the 93 is corrected or valid, nothing is filled, ABOLISHED_AREA says why', () => {
+  it('name only: each of the 123 is ambiguous, nothing is filled, ABOLISHED_AREA (warning) says why', () => {
     const bad: string[] = []
     for (const name of W) {
       const r = check({ subdistrict: name })
-      if (r.status === 'corrected' || r.status === 'valid' || JSON.stringify(r.output) !== JSON.stringify({ subdistrict: name }) || !abolishedFlag(r)) {
+      const ab = r.findings.find((f) => f.code === 'ABOLISHED_AREA')
+      if (r.status !== 'ambiguous' || ab?.severity !== 'warning' || r.resolved !== undefined || JSON.stringify(r.output) !== JSON.stringify({ subdistrict: name }) || !abolishedFlag(r)) {
         bad.push(`${name}: ${r.status} ${JSON.stringify(r.output)}`)
       }
     }
     expect(bad).toEqual([])
   })
 
-  it('the 58 linked names (an old record names the current place as successor, e.g. บึงกาฬ) are still filled', () => {
+  it('the 28 same-place names (an old record names the current place as successor, e.g. บึงกาฬ) are still filled', () => {
     const bad: string[] = []
     for (const name of linked) {
       const s = subdistrictsByName(name)
@@ -101,15 +103,25 @@ describe('the two named cases (F10, F11)', () => {
     expect(r.findings.find((f) => f.code === 'POSTAL_CODE_MISMATCH')?.detail.expected).toEqual(['10260', '13150'])
   })
 
-  it('บางเขน (abolished in Bangkok, no successor): not filled as Nonthaburi; + 10220 points to เขตบางเขน, no mismatch', () => {
+  it('บางเขน (abolished in Bangkok, no successor): ambiguous, not filled as Nonthaburi; + 10220 points to เขตบางเขน', () => {
     const bare = check({ subdistrict: 'บางเขน' })
-    expect(bare.status).toBe('invalid')
+    expect(bare.status).toBe('ambiguous')
     expect(bare.output).toEqual({ subdistrict: 'บางเขน' })
+    expect(bare.suggestions.find((x) => x.field === 'province')).toMatchObject({ to: 'นนทบุรี', confidence: 0.5 })
     const r = check({ subdistrict: 'บางเขน', postalCode: '10220' })
     expect(r.status).toBe('invalid')
     expect(r.findings.map((f) => f.code)).toEqual(['ABOLISHED_AREA'])
     expect(r.findings[0]!.message.en).toContain('10220 is used in เขตบางเขน กรุงเทพมหานคร')
     expect(check({ subdistrict: 'บางเขน', postalCode: '11000' }).status).toBe('corrected')
+  })
+})
+
+describe('rule A cases named in the ruling', () => {
+  it('ส้มผ่อ is withheld; บึงกาฬ is filled as before', () => {
+    expect(check({ subdistrict: 'ส้มผ่อ' }).status).toBe('ambiguous')
+    const b = check({ subdistrict: 'บึงกาฬ' })
+    expect(b.status).toBe('corrected')
+    expect(b.output.province).toBe('บึงกาฬ')
   })
 })
 
