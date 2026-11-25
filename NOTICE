@@ -2,7 +2,10 @@ thai-address-check
 Copyright (c) 2026 Mammost. The code in this repository is licensed under the MIT License (LICENSE).
 
 The npm package does not include address data. It depends on @geothai/core, which ships the data
-with its own LICENSE and NOTICE.
+with its own LICENSE and NOTICE. The package does emit that data: `thai-address-check export` and
+`listAddresses()` write the address rows of the installed @geothai/core, and the command prints the
+credit line with every export. Anyone who publishes or redistributes those rows must keep the
+CC BY 4.0 credit reproduced below.
 
 The browser playground in web/ bundles data from @geothai/core into the built JavaScript. That data
 is credited below, reproduced from the NOTICE of @geothai/core 5.0.0:

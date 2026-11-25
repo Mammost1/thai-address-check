@@ -1,12 +1,12 @@
 {
   "meta": {
-    "package": "thai-address-check@0.1.1",
+    "package": "thai-address-check@0.2.0",
     "geothaiCore": "5.0.0",
     "dataVersion": "2026.10.23",
     "seed": 20261125,
     "rowsPerClass": 300,
     "cleanRows": 1500,
-    "digest": "8637b4d3ff7ffa30",
+    "digest": "8956262ed323c8f0",
     "command": "npm run bench"
   },
   "deterministic": {
@@ -169,7 +169,7 @@
       "n": 1500,
       "falseAlarms": 0,
       "wrongResolution": 0,
-      "cosmetic": 43
+      "cosmetic": 0
     }
   },
   "timing": {
@@ -178,60 +178,60 @@
     "platform": "darwin/arm64",
     "cpu": "Apple M1 Pro",
     "totalChecks": 5148,
-    "meanMsPerCheck": 0.714,
+    "meanMsPerCheck": 0.873,
     "cleanMeanMs": 0.008,
     "perClass": {
       "formatting": {
-        "meanMs": 0.021,
-        "maxMs": 1.73
+        "meanMs": 0.026,
+        "maxMs": 1.76
       },
       "misspell:drop-tone-or-vowel": {
-        "meanMs": 0.118,
-        "maxMs": 6.79
+        "meanMs": 0.116,
+        "maxMs": 7.19
       },
       "misspell:confusable-letter": {
-        "meanMs": 0.043,
-        "maxMs": 0.11
+        "meanMs": 0.042,
+        "maxMs": 0.1
       },
       "misspell:transposition": {
-        "meanMs": 0.041,
-        "maxMs": 0.11
+        "meanMs": 0.043,
+        "maxMs": 0.15
       },
       "misspell:keyboard-neighbour": {
-        "meanMs": 0.043,
-        "maxMs": 0.42
+        "meanMs": 0.04,
+        "maxMs": 0.43
       },
       "misspell:delete-consonant": {
-        "meanMs": 0.037,
-        "maxMs": 0.13
+        "meanMs": 0.036,
+        "maxMs": 0.1
       },
       "misspell:alone": {
-        "meanMs": 11.845,
-        "maxMs": 20.09
+        "meanMs": 14.565,
+        "maxMs": 121.82
       },
       "wrong-postal-code": {
-        "meanMs": 0.013,
-        "maxMs": 0.28
+        "meanMs": 0.014,
+        "maxMs": 0.27
       },
       "wrong-parent": {
-        "meanMs": 0.013,
-        "maxMs": 0.2
+        "meanMs": 0.012,
+        "maxMs": 0.17
       },
       "old-name:notice-one-successor": {
-        "meanMs": 0.031,
-        "maxMs": 0.42
+        "meanMs": 0.029,
+        "maxMs": 0.44
       },
       "old-name:weak-evidence": {
-        "meanMs": 0.016,
-        "maxMs": 0.05
+        "meanMs": 0.015,
+        "maxMs": 0.11
       },
       "missing-field:one-answer": {
         "meanMs": 0.01,
-        "maxMs": 0.18
+        "maxMs": 0.24
       },
       "missing-field:several-answers": {
-        "meanMs": 0.006,
-        "maxMs": 0.1
+        "meanMs": 0.007,
+        "maxMs": 0.16
       }
     }
   },

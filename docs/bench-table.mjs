@@ -44,7 +44,7 @@ const clean = det.clean
 lines.push('')
 lines.push(
   `Clean set (${clean.n} correct addresses): ${clean.falseAlarms} false alarms, ${clean.wrongResolution} resolved to a different address, ` +
-    `${clean.cosmetic} came back with the same address written differently (the official name replaces the input text, e.g. Bangkok "เขตพระนคร" becomes "พระนคร").`,
+    `${clean.cosmetic} came back with the same address written differently (output text not equal to the input).`,
 )
 lines.push('')
 lines.push(

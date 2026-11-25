@@ -72,6 +72,34 @@ thai-address-check customers.csv --out customers.checked.csv --report summary.js
 `--delimiter` รับอักขระตัวเดียวหรือคำว่า `tab` ถ้าระบุผิด (เช่น ไฟล์คั่นด้วย `,` แต่ใส่ `;`) จะหยุดพร้อมบอกตัวคั่นที่น่าจะใช่
 แถวที่ทุกเซลล์ว่าง (เช่น `,,,`) จะถูกข้ามและแจ้งจำนวนในสรุป ไม่นับเป็นแถวที่ผิด แถวเหล่านี้ไม่อยู่ในไฟล์ผลลัพธ์ด้วย ดังนั้นแถวที่ N ของผลลัพธ์อาจไม่ตรงกับแถวที่ N ของไฟล์ต้นฉบับ
 
+## ตัวอย่างที่ 4: ใช้เป็นข้อมูลตั้งต้นของ database
+
+แทนการหาไฟล์ JSON จากอินเทอร์เน็ตแล้วแก้เองทีละแถว ให้ส่งออกข้อมูลอ้างอิงชุดเดียวกับที่ใช้ตรวจ:
+
+```bash
+thai-address-check export > addresses.csv                         # CSV (ค่าเริ่มต้น) ออกทาง stdout
+thai-address-check export --format json --out addresses.json      # หรือ JSON ลงไฟล์
+```
+
+ในโค้ด: `import { listAddresses, dataVersion } from 'thai-address-check'` ได้ข้อมูลชุดเดียวกันเป็น array
+
+- **หนึ่งแถวต่อ (ตำบล, รหัสไปรษณีย์)** คอลัมน์: `province_code`, `province_name_th`, `province_name_en`, `district_code`,
+  `district_name_th`, `district_name_en`, `subdistrict_code`, `subdistrict_name_th`, `subdistrict_name_en`, `postal_code`
+  (JSON ใช้ชื่อแบบ camelCase เช่น `provinceCode`) เรียงตามรหัสตำบลแล้วตามรหัสไปรษณีย์ ทุกค่าเป็นข้อความ
+- ข้อมูลรุ่น `2026.10.23` (`@geothai/core` 5.0.0): 7,600 แถว, 7,436 ตำบล, 928 อำเภอ/เขต, 77 จังหวัด
+- ตำบลหนึ่งมีรหัสไปรษณีย์ได้มากกว่าหนึ่งรหัส (160 ตำบลในรุ่นนี้) ดังนั้น key ของตารางคือ `subdistrict_code` + `postal_code`
+  ไม่ใช่ `subdistrict_code` อย่างเดียว
+- ชื่อเป็นชื่อตามชุดข้อมูลโดยไม่ดัดแปลง: เขตของกรุงเทพฯ มีคำว่า "เขต" นำหน้า (เช่น `เขตพระนคร`) เวลาตรวจที่อยู่ รับได้ทั้ง
+  `เขตพระนคร` และ `พระนคร` และไม่เปลี่ยนค่าที่ส่งมา
+- อัปเดตตารางเมื่อขึ้นเวอร์ชัน: โหลดไฟล์ใหม่เข้าตารางพัก แล้ว upsert ด้วย key `subdistrict_code` + `postal_code` (เพิ่ม key ใหม่ แก้ชื่อของ key เดิม
+  ส่วน key ที่หายไปจะลบหรือเก็บไว้ ให้ตัดสินเอง) รันซ้ำกี่ครั้งก็ได้ผลเดิม
+- ข้อมูลใช้สัญญาอนุญาต CC BY 4.0: ถ้านำไปเผยแพร่หรือแสดงต่อ ต้องใส่เครดิตตาม[ส่วนเครดิตข้อมูล](#เครดิตข้อมูล-attribution)
+  คำสั่ง `export` พิมพ์บรรทัดเครดิตทาง stderr ทุกครั้ง (ไม่ปนกับข้อมูล)
+
+**ตรวจตารางที่มีอยู่แล้ว:** ส่งออกตารางของคุณเป็น CSV แล้วรัน `thai-address-check my-table.csv --no-fix` อ่านคอลัมน์ `tac_codes`
+ของแต่ละแถว (เช่น `POSTAL_CODE_MISMATCH` คือรหัสไปรษณีย์ไม่ใช่ของตำบลนั้น) หัวตารางแบบเดียวกับที่ `export` เขียน
+(`province_name_th`, …, `postal_code`) หาคอลัมน์ได้เองโดยไม่ต้องใช้ `--map`
+
 ## ติดตั้ง
 
 ติดตั้งจากซอร์สในโฟลเดอร์โปรเจกต์ เมื่อต้องการแก้โค้ดหรือลองเวอร์ชันล่าสุด (ต้องใช้ Node 22.12 ขึ้นไป):
@@ -171,9 +199,9 @@ npm --prefix web test                  # ชุดทดสอบของหน
 | Missing fields, exactly one answer | 300 | 100.0 | 100.0 | 0.0 | 0.0 |
 | Missing fields, several answers (must stay ambiguous) | 300 | 100.0 | 0.0 | 0.0 | 100.0 |
 
-Clean set (1500 correct addresses): 0 false alarms, 0 resolved to a different address, 43 came back with the same address written differently (the official name replaces the input text, e.g. Bangkok "เขตพระนคร" becomes "พระนคร").
+Clean set (1500 correct addresses): 0 false alarms, 0 resolved to a different address, 0 came back with the same address written differently (output text not equal to the input).
 
-Reproduce: `npm run bench` · seed 20261125 · 300 rows per class · 1500 clean rows · `@geothai/core` 5.0.0 (data 2026.10.23) · result digest `8637b4d3ff7ffa30`. Counts are deterministic for a given seed and data version. Timings are deliberately not printed here: they depend on the machine, so run `npm run bench` to measure your own.
+Reproduce: `npm run bench` · seed 20261125 · 300 rows per class · 1500 clean rows · `@geothai/core` 5.0.0 (data 2026.10.23) · result digest `8956262ed323c8f0`. Counts are deterministic for a given seed and data version. Timings are deliberately not printed here: they depend on the machine, so run `npm run bench` to measure your own.
 
 <!-- bench:end -->
 
@@ -188,7 +216,7 @@ Reproduce: `npm run bench` · seed 20261125 · 300 rows per class · 1500 clean 
 - **ความเร็ว:** README ไม่ระบุเวลาเป็นมิลลิวินาที เพราะขึ้นกับเครื่อง เป้าหมายการออกแบบคือเฉลี่ยต่ำกว่า 5 ms ต่อการตรวจหนึ่งรายการบนชุดทดสอบ (เป็นเป้าหมาย ไม่ใช่ค่าที่วัดแล้วรับรอง) กรณีที่ช้าที่สุดคือชื่อตำบลที่สะกดผิดโดยไม่มีช่องอื่นช่วย เพราะต้องไล่เทียบกับชื่อตำบลทั้งหมด 7,436 ชื่อ ซึ่งช้ากว่าค่าเฉลี่ยชัดเจนและเรายอมรับข้อนี้ ให้รัน `npm run bench` เพื่อวัดบนเครื่องของคุณ
 - **ไฟล์:** หัวตารางต้องอยู่ **แถวแรก** ของไฟล์หรือชีต ไม่รองรับแถวชื่อเรื่องหรือหมายเหตุเหนือหัวตาราง (ให้ลบก่อน) `.xlsx` ถูกอ่านทั้งชีตเข้าหน่วยความจำ
   (CSV อ่านแบบ streaming) และไม่รองรับ `.xls` (บันทึกเป็น `.xlsx` หรือ `.csv` ก่อน)
-- **ขนาดบนเบราว์เซอร์:** เมื่อ bundle ไลบรารีรวมข้อมูล GeoThai ทั้งชุด ได้ประมาณ 885 KB (minified) หรือประมาณ 158 KB (gzip) ตัวเลขนี้ได้จาก
+- **ขนาดบนเบราว์เซอร์:** เมื่อ bundle ไลบรารีรวมข้อมูล GeoThai ทั้งชุด ได้ประมาณ 886 KB (minified) หรือประมาณ 159 KB (gzip) ตัวเลขนี้ได้จาก
   `npm run build` แล้ว `npx esbuild dist/index.js --bundle --minify --format=esm --platform=neutral | wc -c` (ต่อด้วย `| gzip -9 | wc -c` สำหรับ gzip)
   และขึ้นกับ bundler
 - **การแก้ชื่อที่พิมพ์ผิดแบบอัตโนมัติ** ไม่ทำเมื่อมีชื่อจริงอีกชื่อที่ใกล้เคียงกัน (ห่างกันไม่ถึง 0.15 ในความมั่นใจ) จะเสนอทั้งสองชื่อให้เลือกเอง แต่การพิมพ์ผิดที่ใกล้ชื่อจริงอีกชื่อ
@@ -196,6 +224,16 @@ Reproduce: `npm run bench` · seed 20261125 · 300 rows per class · 1500 clean 
 
 **ไม่อยู่ในขอบเขต:** การแกะที่อยู่จากข้อความอิสระ, ระดับบ้านเลขที่/ถนน/ซอย/หมู่บ้าน, พิกัดและแผนที่, ชุดข้อมูลของตัวเอง,
 บริการออนไลน์ที่ต้องมีเซิร์ฟเวอร์ (ดูเหตุผลใน [`PLAN.md`](PLAN.md))
+
+## ข้อมูลอัปเดตอย่างไร
+
+- ข้อมูลที่มากับแพ็กเกจรุ่นนี้: รุ่น `2026.10.23` จาก `@geothai/core` 5.0.0 ซึ่ง `package.json` ระบุเวอร์ชันตายตัว (ไม่มี `^`)
+- ข้อมูลจึงเปลี่ยน **เฉพาะเมื่อแพ็กเกจนี้ออกเวอร์ชันใหม่** อัปเกรดเวอร์ชันแล้วได้ข้อมูลใหม่ทุกคนพร้อมกัน ไม่ต้องแก้ไฟล์เอง
+  (เราไม่รับประกันว่าข้อมูลต้นทางตามประกาศของทางราชการได้เร็วแค่ไหน)
+- ดูว่ากำลังใช้ข้อมูลรุ่นไหน: `thai-address-check --help` (บรรทัด `Data version:`) หรือ `dataVersion` ในโค้ด
+  และทุกผลของ `check()` มี `dataVersion`
+- เมื่อ `@geothai/core` ออกรุ่นใหม่ Dependabot ([`.github/dependabot.yml`](.github/dependabot.yml)) เปิด pull request ซึ่ง CI รันทดสอบให้
+  ทดสอบที่ผูกกับรุ่นข้อมูลและจำนวนแถวจะล้มโดยตั้งใจ เพื่อให้ตรวจตัวเลขก่อนรับ การออกเวอร์ชันยังต้องให้ผู้ดูแลอนุมัติเสมอ ไม่มีงานไหนเผยแพร่เอง
 
 ## Dependency
 
@@ -214,6 +252,7 @@ npm run bench                                    # วัดความแม�
 - [`.github/workflows/weekly-data-check.yml`](.github/workflows/weekly-data-check.yml): ทุกวันจันทร์ตรวจว่า `@geothai/core`
   มีรุ่นใหม่หรือไม่ ถ้ามีจะติดตั้งแบบไม่บันทึก รัน test และ benchmark เต็ม แล้วเปิด issue พร้อมผลเทียบกับตัวเลขที่ commit ไว้
   (ไม่แก้ไฟล์ใดและไม่ commit เอง)
+- [`.github/dependabot.yml`](.github/dependabot.yml): ตรวจ npm ทุกวัน (`@geothai/core` ได้ pull request แยกของตัวเอง) และ GitHub Actions ทุกสัปดาห์
 
 ## เครดิตข้อมูล (Attribution)
 
@@ -287,6 +326,34 @@ Options are listed in the Thai table above and in `thai-address-check --help`. E
 `--delimiter` takes one character or the word `tab`; a wrong one (a comma file given `;`) stops with the likely delimiter named.
 Rows in which every cell is empty (such as `,,,`) are skipped and counted in the summary, not counted as invalid. They are also left out of the output file, so output row N no longer lines up with input row N.
 
+### Example 4: seed your own table
+
+Instead of a JSON file found on the internet and patched by hand, export the same reference data the checker uses:
+
+```bash
+thai-address-check export > addresses.csv                         # CSV (default) on stdout
+thai-address-check export --format json --out addresses.json      # or JSON into a file
+```
+
+In code: `import { listAddresses, dataVersion } from 'thai-address-check'` gives the same rows as an array.
+
+- **One row per (subdistrict, postal code).** Columns: `province_code`, `province_name_th`, `province_name_en`, `district_code`,
+  `district_name_th`, `district_name_en`, `subdistrict_code`, `subdistrict_name_th`, `subdistrict_name_en`, `postal_code`
+  (JSON uses camelCase, e.g. `provinceCode`), sorted by subdistrict code then postal code; every value is a string.
+- Data `2026.10.23` (`@geothai/core` 5.0.0): 7,600 rows, 7,436 subdistricts, 928 districts, 77 provinces.
+- A subdistrict can have more than one postal code (160 do in this data), so the table key is `subdistrict_code` + `postal_code`,
+  not `subdistrict_code` alone.
+- Names are the dataset's own, unmodified: Bangkok districts carry the `เขต` prefix (`เขตพระนคร`). When checking an address, both
+  `เขตพระนคร` and `พระนคร` are accepted and neither is rewritten.
+- To update after an upgrade: load the new file into a staging table and upsert on `subdistrict_code` + `postal_code` (insert new keys,
+  update names on existing keys, and decide yourself whether to delete keys that disappeared); running it twice gives the same table.
+- The data is CC BY 4.0: if you publish or display it, keep the credit from [Attribution](#attribution). `export` prints the credit line
+  on stderr every time (never mixed into the data).
+
+**Audit a table you already have:** export your table to CSV, run `thai-address-check my-table.csv --no-fix`, and read each row's
+`tac_codes` (for example `POSTAL_CODE_MISMATCH`: the postal code is not one of that subdistrict's). The headers `export` writes
+(`province_name_th`, …, `postal_code`) are found without `--map`.
+
 ### Install
 
 From source, to work on the code or try the latest version (Node 22.12 or newer):
@@ -347,11 +414,22 @@ measures **simulated** errors, not real customer data. **Speed:** the README quo
 
 - **Files:** the header must be the **first row** of the file or sheet; a title or note above it is not supported (delete it first). `.xlsx` is read
   as a whole sheet into memory (CSV is streamed) and `.xls` is not supported (save as `.xlsx` or `.csv`).
-- **Size in a browser bundle:** bundling the library includes the whole GeoThai dataset: about 885 KB minified, about 158 KB gzipped. Re-run with
+- **Size in a browser bundle:** bundling the library includes the whole GeoThai dataset: about 886 KB minified, about 159 KB gzipped. Re-run with
   `npm run build` then `npx esbuild dist/index.js --bundle --minify --format=esm --platform=neutral | wc -c` (add `| gzip -9 | wc -c` for gzip); it depends on the bundler.
 - **Automatic correction of misspelled names** is not applied when another real name is nearly as close (less than 0.15 apart in confidence): both
   are suggested and you choose. A typo that happens to be closer to a different real name than to the intended one can still be corrected to
   that other name (very rare in a trial on every one-character typo of every subdistrict): review the result before using it on important data.
+
+### How the data stays current
+
+- Data shipped with this version: `2026.10.23`, from `@geothai/core` 5.0.0, which `package.json` pins exactly (no `^`).
+- So the data changes **only when this package releases a new version**: everyone who upgrades gets the same new data, with no file
+  mapping by hand. (We make no promise about how quickly the upstream data follows official announcements.)
+- To see which data you run: `thai-address-check --help` (the `Data version:` line) or `dataVersion` in code; every `check()`
+  result also carries `dataVersion`.
+- When `@geothai/core` publishes a new version, Dependabot ([`.github/dependabot.yml`](.github/dependabot.yml)) opens a pull request and CI
+  tests it; the tests tied to the data version and row counts fail on purpose so the numbers are re-checked before merging. A release
+  always needs the maintainer's approval; nothing publishes by itself.
 
 ### Dependencies
 

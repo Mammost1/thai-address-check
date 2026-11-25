@@ -327,7 +327,7 @@ for (const c of classes) {
 // Clean set: valid addresses must stay untouched and raise nothing above info.
 const cleanRows = sample(CLEAN_N).map((s) => ({ input: fullAddress(s), truthCode: s.code }))
 // `wrongResolution`: valid/corrected but resolved to another address. `cosmetic`: output text differs
-// from the input only in how the official name is written (Bangkok 'เขตพระนคร' becomes 'พระนคร').
+// from the input only in how the official name is written.
 const clean = { n: cleanRows.length, falseAlarms: 0, wrongResolution: 0, cosmetic: 0, ms: 0 }
 for (const row of cleanRows) {
   const t0 = performance.now()
@@ -387,7 +387,7 @@ const lines = [
   ...results.map((r) => `| ${r.id} | ${r.n} | ${r.ideal} | ${f(pct(r.detected, r.n))} | ${f(pct(r.correct, r.n))} | ${f(pct(r.wrong, r.n))} | ${f(pct(r.unfixed, r.n))} | ${(r.ms / Math.max(1, r.n)).toFixed(3)} |`),
   `| clean (no error) | ${clean.n} | stay valid | false alarms ${f(pct(clean.falseAlarms, clean.n))} | - | wrong resolution ${f(pct(clean.wrongResolution, clean.n))} | - | ${(clean.ms / Math.max(1, clean.n)).toFixed(3)} |`,
   '',
-  `clean set: ${clean.cosmetic} of ${clean.n} outputs differ from the input only in cosmetics (Bangkok district written without 'เขต'); ${clean.wrongResolution} resolved to a different address`,
+  `clean set: ${clean.cosmetic} of ${clean.n} outputs differ from the input only in cosmetics; ${clean.wrongResolution} resolved to a different address`,
   `overall mean ${out.timing.meanMsPerCheck} ms/check over ${totalChecks} checks (${out.timing.cpu}, node ${process.version}); machine dependent`,
   'ideal=fix: a correct rewrite is the goal. ideal=report: the evidence is not strong enough to rewrite, so "wrongly fixed" must stay 0 and findings must be raised.',
 ]

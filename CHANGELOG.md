@@ -3,6 +3,32 @@
 All notable changes to `thai-address-check`. Versions follow [semver](https://semver.org/).
 บันทึกการเปลี่ยนแปลงของ `thai-address-check` (ไทยก่อน อังกฤษตามหลัง)
 
+## 0.2.0 — 2026-11-25
+
+Seed your own table from the same data the checker uses, and know which data you run.
+ส่งออกข้อมูลอ้างอิงชุดเดียวกับที่ใช้ตรวจ เพื่อใช้เป็นข้อมูลตั้งต้นของ database และบอกได้ว่ากำลังใช้ข้อมูลรุ่นไหน
+
+### Added / เพิ่ม
+
+- `listAddresses()` and `dataVersion` exported from the package: one row per (subdistrict, postal code), ten string fields
+  (`provinceCode` … `postalCode`), sorted by subdistrict code then postal code. Data 2026.10.23: 7,600 rows, 7,436 subdistricts,
+  160 of them with more than one postal code.
+- `thai-address-check export [--format csv|json] [--out <file>] [--no-bom]`: the same rows as CSV (snake_case header, same quoting,
+  CRLF and byte-order mark as the checked-file output) or JSON. The data credit (CC BY 4.0) is printed on stderr with every export.
+- `thai-address-check --help` prints the data version and the credit line.
+- Column detection finds the headers `export` writes (`province_name_th`, …) and plain `*_name` headers, so an exported or seeded
+  table is checked without `--map` (it used to stop with "Several columns look like province").
+- `.github/dependabot.yml`: a new `@geothai/core` opens its own pull request (daily check); CI runs on it. CI also checks that
+  every exported row checks back as valid.
+
+### Changed / เปลี่ยน
+
+- **Bangkok district names written as the dataset writes them are no longer rewritten.** `เขตพระนคร` used to come back `valid`
+  with a `FORMAT_NORMALIZED` finding and `output.district` changed to `พระนคร`; now a value that is exactly the dataset's own name
+  is kept with no finding. `พระนคร` is still accepted and also kept as given. Other prefixes (`อ.`, `อำเภอ`, `เขต พระนคร` with a space)
+  are stripped as before. Benchmark: the clean set's "same address written differently" count goes from 43 to 0; every other
+  count is unchanged (digest `8956262ed323c8f0`).
+
 ## 0.1.2 — 2026-11-25
 
 Hardening release: every problem found by a tester who used the published 0.1.1 like a stranger would.
