@@ -1,6 +1,6 @@
 {
   "name": "thai-address-check",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Check Thai addresses field by field: find what is wrong, explain it, and fix it only when the evidence is strong.",
   "license": "MIT",
   "type": "module",
@@ -27,7 +27,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build": "tsup",
-    "bench": "npm run build && node bench/run.mjs"
+    "bench": "npm run build && node bench/run.mjs",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "keywords": [
     "thai",

@@ -6,7 +6,7 @@
 และ **แก้ให้เองเฉพาะเมื่อหลักฐานแน่นพอ** ใช้เป็นไลบรารี TypeScript, คำสั่งใน terminal สำหรับไฟล์ CSV/Excel
 หรือหน้าเว็บที่ประมวลผลในเบราว์เซอร์ ทั้งหมดไม่ใช้ AI ไม่เรียกเซิร์ฟเวอร์ และรันในเครื่องของคุณ
 
-> **สถานะ:** ยังไม่ได้เผยแพร่บน npm การเผยแพร่เป็นการตัดสินใจของเจ้าของโปรเจกต์ ตอนนี้ติดตั้งจากซอร์สตามหัวข้อ "ติดตั้ง"
+> ติดตั้ง: `npm install thai-address-check` · ตรวจไฟล์: `npx thai-address-check <file>`
 
 ## ตัวอย่างที่ 1: ตรวจที่อยู่หนึ่งรายการ
 
@@ -80,7 +80,7 @@ npm run build                          # สร้าง dist/ (ไลบรา�
 node dist/cli.js customers.csv         # ลองใช้คำสั่ง
 ```
 
-เมื่อเผยแพร่แล้วจะใช้ `npm install thai-address-check` และ `npx thai-address-check <file>` ได้
+ติดตั้งจาก npm: `npm install thai-address-check` หรือรันทันที `npx thai-address-check <file>`
 
 หน้าเว็บ (ลากไฟล์หรือวางที่อยู่แล้วเห็นผล ทุกอย่างประมวลผลในเบราว์เซอร์):
 
@@ -276,7 +276,7 @@ npm run build
 node dist/cli.js customers.csv
 ```
 
-Once published: `npm install thai-address-check`, `npx thai-address-check <file>`.
+Install: `npm install thai-address-check`, or run `npx thai-address-check <file>`.
 Web page: `npm --prefix web ci`, then `npm --prefix web run dev` (try it) or `npm --prefix web run build`
 (`web/dist/`, with a Content-Security-Policy that blocks any connection leaving the browser).
 
