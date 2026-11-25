@@ -296,6 +296,14 @@ A11. Interface between validate, suggest and abolished, binding
       no other field may take 9 to 15 ms because it scans all 7,436 names; accepted, and the
       README states it.
 
+A12. (2026-11-25, tac-harden T1, tightens Global constraint 9) A correction is applied only when the best
+    candidate is at least 0.15 ahead of the runner-up (`AUTOCORRECT_MARGIN` in src/suggest.ts), in addition to
+    "confidence >= threshold AND exactly one candidate qualifies". A name one character from two real names
+    (ท่าวัก: ท่าซัก 0.900, ท่าวัง 0.833) is reported with both as suggestions and `closeRunnerUp` in the
+    finding detail, never rewritten. Measured on 153,561 one-character typos of the 7,436 subdistrict names:
+    wrong corrections 9 -> 2 for 387 of 78,048 right corrections (0.5%) that become suggestions. The 2 left
+    have a unique closest real name that is not the intended one; no margin removes them (known limit).
+
 ## Escalation
 Contract or scope questions → an issue on the repository. A finding that the plan
 contradicts the real `@geothai/core` API is the plan's defect: challenge it, do not work around.

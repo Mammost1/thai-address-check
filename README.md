@@ -146,11 +146,11 @@ npm --prefix web run build             # ได้ web/dist/ (หน้าเว
 | Error injected | Rows | Detected % | Fixed correctly % | Fixed wrongly % | Reported only % |
 |---|---:|---:|---:|---:|---:|
 | Formatting only (ต./อ./จ., Thai digits, กทม.) | 300 | 100.0 | 100.0 | 0.0 | 0.0 |
-| Misspelling: dropped tone mark or vowel | 300 | 100.0 | 52.3 | 0.0 | 47.7 |
-| Misspelling: look-alike letter | 300 | 100.0 | 99.7 | 0.0 | 0.3 |
-| Misspelling: swapped letters | 300 | 100.0 | 93.7 | 0.0 | 6.3 |
-| Misspelling: neighbouring key | 300 | 100.0 | 87.7 | 0.0 | 12.3 |
-| Misspelling: deleted consonant | 300 | 100.0 | 20.3 | 0.0 | 79.7 |
+| Misspelling: dropped tone mark or vowel | 300 | 100.0 | 51.7 | 0.0 | 48.3 |
+| Misspelling: look-alike letter | 300 | 100.0 | 99.3 | 0.0 | 0.7 |
+| Misspelling: swapped letters | 300 | 100.0 | 93.3 | 0.0 | 6.7 |
+| Misspelling: neighbouring key | 300 | 100.0 | 86.3 | 0.0 | 13.7 |
+| Misspelling: deleted consonant | 300 | 100.0 | 20.0 | 0.0 | 80.0 |
 | Misspelled name with no other help | 300 | 100.0 | 0.0 | 0.0 | 100.0 |
 | Wrong postal code | 300 | 100.0 | 0.0 | 0.0 | 100.0 |
 | Subdistrict under the wrong district | 300 | 100.0 | 0.0 | 0.0 | 100.0 |
@@ -161,7 +161,7 @@ npm --prefix web run build             # ได้ web/dist/ (หน้าเว
 
 Clean set (1500 correct addresses): 0 false alarms, 0 resolved to a different address, 43 came back with the same address written differently (the official name replaces the input text, e.g. Bangkok "เขตพระนคร" becomes "พระนคร").
 
-Reproduce: `npm run bench` · seed 20261125 · 300 rows per class · 1500 clean rows · `@geothai/core` 5.0.0 (data 2026.10.23) · result digest `f8899e6d281debc6`. Counts are deterministic for a given seed and data version. Timings are deliberately not printed here: they depend on the machine, so run `npm run bench` to measure your own.
+Reproduce: `npm run bench` · seed 20261125 · 300 rows per class · 1500 clean rows · `@geothai/core` 5.0.0 (data 2026.10.23) · result digest `8637b4d3ff7ffa30`. Counts are deterministic for a given seed and data version. Timings are deliberately not printed here: they depend on the machine, so run `npm run bench` to measure your own.
 
 <!-- bench:end -->
 

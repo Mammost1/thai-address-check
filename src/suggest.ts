@@ -50,6 +50,15 @@ export const NO_CONTEXT_FIT = 0.9
 /** Weight of a candidate that any settled field (parent, child or postal code) contradicts. */
 export const CONTRADICTS_FIT = 0.5
 /**
+ * A correction is applied only when the best candidate is at least this far ahead of the runner-up.
+ * Without it, a name one character from two real names is "corrected" to whichever scores 0.9 while
+ * the other scores 0.83 (ท่าวัก -> ท่าซัก, though ท่าวัง is as close): both are plausible, so the caller
+ * decides. Measured on every one-character typo (delete, swap, substitute) of the 7,436 subdistrict
+ * names: it removes 7 of the 9 wrong corrections for 0.5% of the right ones, which become suggestions
+ * (docs/TASKS.md A12). The remaining 2 are names whose closest real name is unique but not the intended one.
+ */
+export const AUTOCORRECT_MARGIN = 0.15
+/**
  * Confidence of a postal-code suggestion. Kept below the default threshold on purpose: when the
  * names and the postal code disagree, either side may be the wrong one, so it is never rewritten
  * silently (PLAN.md, positioning against thai-address-sdk).
@@ -224,7 +233,7 @@ function levelLabel(level: Level): { th: string; en: string } {
   return { th: 'ตำบล/แขวง', en: 'subdistrict' }
 }
 
-function misspelled(level: Level, given: string, best: Scored, alternatives: Scored[], applied: boolean): Finding {
+function misspelled(level: Level, given: string, best: Scored, alternatives: Scored[], applied: boolean, close?: Scored): Finding {
   const label = levelLabel(level)
   const thai = hasThai(given)
   const name = officialName(best.area, thai)
@@ -237,10 +246,15 @@ function misspelled(level: Level, given: string, best: Scored, alternatives: Sco
           th: `ไม่พบ${label.th}ชื่อ "${given}" แก้เป็น "${name}" (ความมั่นใจ ${best.confidence})`,
           en: `No ${label.en} is named "${given}"; corrected to "${name}" (confidence ${best.confidence}).`,
         }
-      : {
-          th: `ไม่พบ${label.th}ชื่อ "${given}" ชื่อที่ใกล้ที่สุดคือ "${name}" (ความมั่นใจ ${best.confidence}) ยังไม่แก้ให้`,
-          en: `No ${label.en} is named "${given}"; the closest name is "${name}" (confidence ${best.confidence}), not applied.`,
-        },
+      : close
+        ? {
+            th: `ไม่พบ${label.th}ชื่อ "${given}" ชื่อที่ใกล้ที่สุดคือ "${name}" (ความมั่นใจ ${best.confidence}) แต่ "${officialName(close.area, thai)}" (${close.confidence}) ใกล้พอกัน จึงยังไม่แก้ให้`,
+            en: `No ${label.en} is named "${given}"; the closest name is "${name}" (confidence ${best.confidence}) but "${officialName(close.area, thai)}" (${close.confidence}) is nearly as close, so it is not applied.`,
+          }
+        : {
+            th: `ไม่พบ${label.th}ชื่อ "${given}" ชื่อที่ใกล้ที่สุดคือ "${name}" (ความมั่นใจ ${best.confidence}) ยังไม่แก้ให้`,
+            en: `No ${label.en} is named "${given}"; the closest name is "${name}" (confidence ${best.confidence}), not applied.`,
+          },
     detail: {
       given,
       closest: name,
@@ -248,6 +262,7 @@ function misspelled(level: Level, given: string, best: Scored, alternatives: Sco
       similarity: best.similarity,
       confidence: best.confidence,
       applied,
+      ...(close ? { closeRunnerUp: officialName(close.area, thai) } : {}),
       alternatives: alternatives.map((a) => ({ name: officialName(a.area, thai), code: a.area.code, confidence: a.confidence })),
     },
   }
@@ -307,7 +322,9 @@ function handleName(ctx: CheckContext, level: Level): boolean {
   const thai = hasThai(given)
   const qualifying = scored.filter((c) => c.confidence >= autoCorrectThreshold)
   const best = scored[0] as Scored
-  const apply = autoCorrect && qualifying.length === 1 && qualifying[0] === best
+  const runnerUp = scored[1]
+  const crowded = runnerUp !== undefined && best.confidence - runnerUp.confidence < AUTOCORRECT_MARGIN
+  const apply = autoCorrect && qualifying.length === 1 && qualifying[0] === best && !crowded
 
   for (const c of scored.slice(0, maxSuggestions)) {
     const suggestion: Suggestion = {
@@ -327,7 +344,9 @@ function handleName(ctx: CheckContext, level: Level): boolean {
   const tied = scored.filter((c) => c.confidence === best.confidence && officialName(c.area, thai) !== bestName)
   if (tied.length === 0 || apply) {
     dropUnknownName(ctx, level)
-    ctx.findings.push(misspelled(level, given, best, scored.slice(1, maxSuggestions), apply))
+    ctx.findings.push(
+      misspelled(level, given, best, scored.slice(1, maxSuggestions), apply, crowded && qualifying.length === 1 ? runnerUp : undefined),
+    )
   }
   if (apply) ctx.output[level] = bestName
   return apply

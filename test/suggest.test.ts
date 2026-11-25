@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { check, DEFAULT_OPTIONS } from '../src/check'
 import { normalize } from '../src/normalize'
-import { POSTAL_CONFIDENCE, suggest } from '../src/suggest'
+import { allSubdistricts, districtByCode, provinceByCode } from '../src/data'
+import { AUTOCORRECT_MARGIN, POSTAL_CONFIDENCE, suggest } from '../src/suggest'
 import type { AddressInput, CheckContext, CheckOptions, Finding } from '../src/types'
 
 // suggest() is driven directly with a context built the way check() builds it, so these tests do
@@ -226,3 +227,69 @@ describe('abolished names reach abolished.ts (review ruling A7)', () => {
   })
 })
 
+
+describe('a close runner-up blocks auto-correction (tac-harden T1)', () => {
+  // Found by the tester over every one-character typo of the 7,436 subdistrict names: a name one
+  // character from TWO real names was "corrected" to whichever scored higher.
+  const CASES = [
+    // [input, the wrong pick that used to be applied, the other plausible name]
+    [{ province: 'นครศรีธรรมราช', district: 'เมืองนครศรีธรรมราช', subdistrict: 'ท่าวัก', postalCode: '80000' }, 'ท่าซัก', 'ท่าวัง'],
+    [{ province: 'ปทุมธานี', district: 'คลองหลวง', subdistrict: 'คลองหา', postalCode: '12110' }, 'คลองห้า', 'คลองหก'],
+    [{ province: 'อุบลราชธานี', district: 'พิบูลมังสาหาร', subdistrict: 'โนนกาลง', postalCode: '34110' }, 'โนนกลาง', 'โนนกาหลง'],
+  ] as const
+
+  it.each(CASES)('%j is not rewritten: both names are offered, the caller decides', (input, wrong, other) => {
+    const r = check(input)
+    expect(r.status).not.toBe('corrected')
+    expect(r.output.subdistrict).toBe(input.subdistrict) // untouched
+    const names = r.suggestions.filter((s) => s.field === 'subdistrict').map((s) => s.to)
+    expect(names).toEqual(expect.arrayContaining([wrong, other]))
+    const f = r.findings.find((x) => x.code === 'MISSPELLED_NAME')
+    expect(f?.severity).toBe('error')
+    expect(f?.detail).toMatchObject({ applied: false })
+    expect(f?.detail.closeRunnerUp).toBeTypeOf('string')
+    expect(f?.message.th).toContain('ใกล้พอกัน')
+    expect(f?.message.en).toContain('nearly as close')
+  })
+
+  it('a clear winner is still corrected (the margin only guards near-ties)', () => {
+    const r = check({ province: 'สุราษฎร์ธานี', district: 'เกาะพะงัน', subdistrict: 'เกาะพะงนั' })
+    expect(r.status).toBe('corrected')
+    expect(r.output.subdistrict).toBe('เกาะพะงัน')
+    expect(r.findings.find((x) => x.code === 'MISSPELLED_NAME')?.detail.closeRunnerUp).toBeUndefined()
+  })
+
+  it('the margin is 0.15: a runner-up at least that far behind does not block', () => {
+    expect(AUTOCORRECT_MARGIN).toBe(0.15)
+  })
+
+  it('dataset-wide: no applied subdistrict correction ever has a runner-up within the margin', () => {
+    // One-character deletions and substitutions of a spread of real subdistricts (every 5th: ~1,500
+    // names, ~20,000 typos), each with its district, province and postal code.
+    const subs = ['ก', 'า', 'อ', 'ร', 'ล', 'น', 'ม', 'ง', 'ว', 'ย']
+    let corrected = 0
+    let crowded = 0
+    allSubdistricts().forEach((s, n) => {
+      if (n % 5 !== 0) return
+      const district = districtByCode(s.district_code)
+      const province = provinceByCode(s.province_code)
+      if (!district || !province) return
+      const t = [...s.name_th]
+      const typos = [
+        ...t.map((_, i) => t.filter((__, k) => k !== i).join('')),
+        ...t.map((_, i) => t.map((c, k) => (k === i ? (subs[(i + t.length) % subs.length] as string) : c)).join('')),
+      ]
+      for (const typo of typos) {
+        if (!typo || typo === s.name_th) continue
+        const r = check({ province: province.name_th, district: district.name_th, subdistrict: typo, postalCode: s.postal_codes[0] })
+        if (r.status !== 'corrected') continue
+        corrected++
+        const sg = r.suggestions.filter((x) => x.field === 'subdistrict')
+        const second = sg[1]
+        if (second && (sg[0]?.confidence ?? 0) - second.confidence < AUTOCORRECT_MARGIN) crowded++
+      }
+    })
+    expect(corrected).toBeGreaterThan(5000) // the invariant is not vacuous
+    expect(crowded).toBe(0)
+  }, 60_000)
+})
