@@ -41,13 +41,13 @@
   "dependencies": {
     "@geothai/core": "5.0.0",
     "csv-parse": "7.0.3",
-    "read-excel-file": "9.3.14"
+    "read-excel-file": "9.3.20"
   },
   "devDependencies": {
-    "@types/node": "22.20.5",
-    "tsup": "8.5.0",
-    "typescript": "5.9.3",
-    "vitest": "3.2.4"
+    "@types/node": "26.6.6",
+    "tsup": "9.0.0",
+    "typescript": "7.0.2",
+    "vitest": "5.1.1"
   },
   "repository": {
     "type": "git",
